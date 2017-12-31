@@ -7,23 +7,25 @@ answers = []
 for log in f:
     tokens = log.split(',')
     features = log.split(',')[ :-1]
-    answers.append(tokens[-1]) # -1 means that we take the last element from the list
-    for i in range(0 , len(field_names)):
-        features[i] = str(features[i]) + field_names[i]
+    #answers.append(tokens[-1]) # -1 means that we take the last element from the list
+    #for i in range(0 , len(field_names)):
+        #features[i] = str(features[i]) + field_names[i]
     logs.append(features)
 
 for index, answer in enumerate(answers):
     answers[index]= answer.rstrip()
     answers[index] = answers[index].strip('.')
 
+# starting point and ending point for word2vec
+for log in logs:
+    log.insert(0,"***")
+    log.append("###")
+    print(log)
 
-
-
-
-
-
-
-
+# for counting unique values
+# #lstemp = [log[22] for log in logs]
+#temp = list(set(lstemp))
+#print(len(temp))
 
 
 
