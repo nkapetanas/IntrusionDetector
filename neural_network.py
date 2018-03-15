@@ -4,7 +4,8 @@ import lit as lit
 import numpy as np
 from pyspark.shell import sqlContext
 from pyspark.sql import SparkSession, types, dataframe
-from pyspark.ml.feature import Word2Vec
+#from pyspark.ml.feature import Word2Vec
+from pyspark.mllib.feature import Word2Vec
 from pyspark.sql.types import StructType, StructField, StringType
 from pyspark.ml.feature import Bucketizer
 from pyspark.sql import functions as func
@@ -15,49 +16,49 @@ spark = SparkSession.builder.appName('ids').getOrCreate()
 
 
 schema = StructType([
-	#StructField("start_Signal", StringType(), True),
-	StructField("duration", StringType(), True),
-	StructField("protocol_type", StringType(), True),
-	StructField("service", StringType(), True),
-	StructField("flag", StringType(), True),
-	StructField("src_bytes", StringType(), True),
-	StructField("dst_bytes", StringType(), True),
-	StructField("land", StringType(), True),
-	StructField("wrong_fragment", StringType(), True),
-	StructField("urgent", StringType(), True),
-	StructField("hot", StringType(), True),
-	StructField("num_failed_logins", StringType(), True),
-	StructField("logged_in", StringType(), True),
-	StructField("num_compromised", StringType(), True),
-	StructField("root_shell", StringType(), True),
-	StructField("su_attempted", StringType(), True),
-	StructField("num_root", StringType(), True),
-	StructField("num_file_creations", StringType(), True),
-	StructField("num_shells", StringType(), True),
-	StructField("num_access_files", StringType(), True),
-	StructField("num_outbound_cmds", StringType(), True),
-	StructField("is_host_login", StringType(), True),
-	StructField("is_guest_login", StringType(), True),
-	StructField("count", StringType(), True),
-	StructField("srv_count", StringType(), True),
-	StructField("serror_rate", StringType(), True),
-	StructField("srv_serror_rate", StringType(), True),
-	StructField("rerror_rate", StringType(), True),
-	StructField("srv_rerror_rate", StringType(), True),
-	StructField("same_srv_rate", StringType(), True),
-	StructField("diff_srv_rate", StringType(), True),
-	StructField("srv_diff_host_rate", StringType(), True),
-	StructField("dst_host_count", StringType(), True),
-	StructField("dst_host_srv_count", StringType(), True),
-	StructField("dst_host_same_srv_rate", StringType(), True),
-	StructField("dst_host_diff_srv_rate", StringType(), True),
-	StructField("dst_host_same_src_port_rate", StringType(), True),
-	StructField("dst_host_srv_diff_host_rate", StringType(), True),
-	StructField("dst_host_serror_rate", StringType(), True),
-	StructField("dst_host_srv_serror_rate", StringType(), True),
-	StructField("dst_host_rerror_rate", StringType(), True),
-	StructField("dst_host_srv_rerror_rate", StringType(), True),
-	#StructField("end_Signal", StringType(), True)
+    #StructField("start_Signal", StringType(), True),
+    StructField("duration", StringType(), True),
+    StructField("protocol_type", StringType(), True),
+    StructField("service", StringType(), True),
+    StructField("flag", StringType(), True),
+    StructField("src_bytes", StringType(), True),
+    StructField("dst_bytes", StringType(), True),
+    StructField("land", StringType(), True),
+    StructField("wrong_fragment", StringType(), True),
+    StructField("urgent", StringType(), True),
+    StructField("hot", StringType(), True),
+    StructField("num_failed_logins", StringType(), True),
+    StructField("logged_in", StringType(), True),
+    StructField("num_compromised", StringType(), True),
+    StructField("root_shell", StringType(), True),
+    StructField("su_attempted", StringType(), True),
+    StructField("num_root", StringType(), True),
+    StructField("num_file_creations", StringType(), True),
+    StructField("num_shells", StringType(), True),
+    StructField("num_access_files", StringType(), True),
+    StructField("num_outbound_cmds", StringType(), True),
+    StructField("is_host_login", StringType(), True),
+    StructField("is_guest_login", StringType(), True),
+    StructField("count", StringType(), True),
+    StructField("srv_count", StringType(), True),
+    StructField("serror_rate", StringType(), True),
+    StructField("srv_serror_rate", StringType(), True),
+    StructField("rerror_rate", StringType(), True),
+    StructField("srv_rerror_rate", StringType(), True),
+    StructField("same_srv_rate", StringType(), True),
+    StructField("diff_srv_rate", StringType(), True),
+    StructField("srv_diff_host_rate", StringType(), True),
+    StructField("dst_host_count", StringType(), True),
+    StructField("dst_host_srv_count", StringType(), True),
+    StructField("dst_host_same_srv_rate", StringType(), True),
+    StructField("dst_host_diff_srv_rate", StringType(), True),
+    StructField("dst_host_same_src_port_rate", StringType(), True),
+    StructField("dst_host_srv_diff_host_rate", StringType(), True),
+    StructField("dst_host_serror_rate", StringType(), True),
+    StructField("dst_host_srv_serror_rate", StringType(), True),
+    StructField("dst_host_rerror_rate", StringType(), True),
+    StructField("dst_host_srv_rerror_rate", StringType(), True),
+    #StructField("end_Signal", StringType(), True)
 ])
 
 final_struc = StructType(fields = schema)
@@ -112,7 +113,7 @@ logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_en
 
 dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws("%", *logs_fields)).alias("lxplus")
 
-logs_rdd = dataframe_with_bucket.rdd.map(lambda s : s[0])
+logs_rdd = dataframe_with_bucket.rdd.map(lambda s : s[0].split('%'))
 
 #dataframe_with_bucket.show()
 '''
@@ -150,25 +151,26 @@ def Word2_vec():
     ], ["text"])
 
 
+    # df = sqlContext.createDataFrame(logs_rdd, schema)
 
     #dataframe_bucked_map = dataframe_with_bucket.rdd.map(lambda x: (x['duration_bucketized_enc'], x['protocol_type'],x['service'], x['flag'],x['src_bytes_enc'], x['dst_bytes_bucketized_enc'], x['land_enc'], x['wrong_fragment_enc'],x['urgent_enc'], x['hot_enc'],x['num_failed_logins_enc'], x['logged_in_enc'],x['num_compromised_enc'], x['root_shell_enc'], x['su_attempted_enc'],x['num_root_enc'], x['num_file_creations_enc'], x['num_shells_enc'],x['num_access_files_enc'], x['num_outbound_cmds_enc'], x['is_host_login_enc'], x['is_guest_login_enc'], x['count_bucketized_enc'], x['srv_count_bucketized_enc'],x['serror_rate_bucketized_enc'], x['srv_serror_rate_bucketized_enc'], x['rerror_rate_bucketized_enc'], x['srv_rerror_rate_bucketized_enc'], x['same_srv_rate_bucketized_enc'], x['diff_srv_rate_bucketized_enc'],x['srv_diff_host_rate_enc'], x['dst_host_count_enc'], x['dst_host_srv_count_enc'], x['dst_host_same_srv_rate_enc'],x['dst_host_diff_srv_rate_enc'], x['dst_host_same_src_port_rate_enc'],x['dst_host_srv_diff_host_rate_enc'], x['dst_host_serror_rate_enc'], x['dst_host_srv_serror_rate_enc'], x['dst_host_rerror_rate_enc'],x['dst_host_srv_rerror_rate_enc']))
     #mtcars_map.take(5)
     #rdd = dataframe_with_bucket.rdd
 
-    #word2vec = Word2Vec()
-    #word2vec.setNumPartitions(9).setVectorSize(100).setMinCount(1).setWindowSize(5)
-    #model = word2vec.fit(logs_rdd)
+    word2vec = Word2Vec()
+    word2vec.setNumPartitions(9).setVectorSize(100).setMinCount(1).setWindowSize(5)
+    model = word2vec.fit(logs_rdd)
 
     #dataframe_bucked_map.foreach(print)
-    logs_rdd.foreach(print)
+    #logs_rdd.foreach(print)
     # Learn a mapping from words to Vectors.
     #word2Vec = Word2Vec(vectorSize=3, minCount=0, inputCol="duration_bucketized_enc", outputCol="result")
     #model = word2Vec.fit(dataframe_with_bucket)
 
     #result = model.transform(df)
     #for row in result.collect():
-		#text, vector = row
-		#print("Text: [%s] => \nVector: %s\n" % (", ".join(text), str(vector)))
+        #text, vector = row
+        #print("Text: [%s] => \nVector: %s\n" % (", ".join(text), str(vector)))
 
 
 
