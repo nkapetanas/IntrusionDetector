@@ -122,13 +122,6 @@ column_temp = "concat_ws(%, duration_bucketized_enc, protocol_type, service, fla
 logs_rdd = dataframe_with_bucket.rdd.map(lambda s : s[0].split('%'))
 
 
-#mvv = dataframe_with_bucket.select("temp").rdd.flatMap(lambda x: x).collect()
-
-#df = sqlContext.createDataFrame(logs_rdd, schema)
-
-
-#df.show()
-#dataframe_with_bucket.show()
 '''
 f = open("data/kddcup.data_10_percent_corrected", "r")
 logs = []
@@ -158,7 +151,7 @@ def save_word2vec(vectors):
         # print(key)
         vecs_python[key] = list(vectors[key])
     print('The vocabulary size is:' + str(len(vecs_python)))
-    with open('word2vec_' + '.pickle', 'wb') as handle:
+    with open('word2vec_dic' + '.pickle', 'wb') as handle:
         pickle.dump(vecs_python, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -182,10 +175,14 @@ def Word2_vec():
     #rdd = dataframe_with_bucket.rdd
 
     word2vec = Word2Vec()
-    word2vec.setNumPartitions(9).setVectorSize(100).setMinCount(1).setWindowSize(5)
+    word2vec.setNumPartitions(9).setVectorSize(100).setMinCount(1).setWindowSize(3)
     model = word2vec.fit(logs_rdd)
 
     save_word2vec(model.getVectors())
+
+    wordCount = logs_rdd.flatMap(lambda line: line).map(lambda word: (word, 1)).reduceByKey(lambda a, b: a + b).sortBy(lambda x: -x[1])
+    with open("word2vec_dir.pickle" + '_vocab.pickle', 'wb') as handle:
+        pickle.dump(wordCount.collect(), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     synonyms = model.findSynonyms('tcp', 40)
 
@@ -208,3 +205,4 @@ def Word2_vec():
 Word2_vec()
 
 spark.stop()
+
