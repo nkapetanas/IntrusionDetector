@@ -10,8 +10,9 @@ from pyspark.sql.types import StructType, StructField, StringType
 from pyspark.ml.feature import Bucketizer
 from pyspark.sql import functions as func
 import pickle
+import csv
 
-import pandas as pd
+
 spark = SparkSession.builder.appName('ids').getOrCreate()
 
 
@@ -151,8 +152,13 @@ def save_word2vec(vectors):
         # print(key)
         vecs_python[key] = list(vectors[key])
     print('The vocabulary size is:' + str(len(vecs_python)))
-    with open('word2vec_dic' + '.pickle', 'wb') as handle:
-        pickle.dump(vecs_python, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    np.array(vecs_python).dump(open('array.npy', 'wb'))
+    #with open('word2vec_dict.txt', 'wb') as handle:
+        #wr = csv.writer(handle, quoting=csv.QUOTE_ALL)
+        #wr.writerow(vecs_python)
+        #for item in vecs_python:
+            #handle.write(item)
+    #return vecs_python
 
 
 def Word2_vec():
@@ -175,19 +181,24 @@ def Word2_vec():
     #rdd = dataframe_with_bucket.rdd
 
     word2vec = Word2Vec()
-    word2vec.setNumPartitions(9).setVectorSize(100).setMinCount(1).setWindowSize(3)
+    word2vec.setNumPartitions(9).setVectorSize(100).setMinCount(1).setWindowSize(3).setLearningRate(0.00005)
     model = word2vec.fit(logs_rdd)
 
+    #word2vec_dict= save_word2vec(model.getVectors())
     save_word2vec(model.getVectors())
+    #print(word2vec_dict.values())
+    ###########################################
+    #wordCount = logs_rdd.flatMap(lambda line: line).map(lambda word: (word, 1)).reduceByKey(lambda a, b: a + b).sortBy(lambda x: -x[1])
+    #with open("word2vec_dir.pickle" + '_vocab.pickle', 'wb') as handle:
+        #pickle.dump(wordCount.collect(), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    wordCount = logs_rdd.flatMap(lambda line: line).map(lambda word: (word, 1)).reduceByKey(lambda a, b: a + b).sortBy(lambda x: -x[1])
-    with open("word2vec_dir.pickle" + '_vocab.pickle', 'wb') as handle:
-        pickle.dump(wordCount.collect(), handle, protocol=pickle.HIGHEST_PROTOCOL)
+    #synonyms = model.findSynonyms('tcp', 40)
 
-    synonyms = model.findSynonyms('tcp', 40)
+    #for word, cosine_distance in synonyms:
+        #print("{}: {}".format(word, cosine_distance))
 
-    for word, cosine_distance in synonyms:
-        print("{}: {}".format(word, cosine_distance))
+
+    ##########################################
     #dataframe_bucked_map.foreach(print)
     #logs_rdd.foreach(print)
     # Learn a mapping from words to Vectors.
