@@ -8,19 +8,9 @@ from pyspark.sql.types import StructType, StructField, StringType
 from pyspark.ml.feature import Bucketizer
 from pyspark.sql import functions as func
 import csv
-from matplotlib.ticker import NullFormatter
-from time import time
 from sklearn.manifold import TSNE
-import sys
-import codecs
 import matplotlib.pyplot as plt
-import matplotlib.patheffects as PathEffects
-import seaborn as sns
-import pickle
 
-
-# Random state.
-RS = 20150101
 
 spark = SparkSession.builder.appName('ids').getOrCreate()
 
@@ -80,23 +70,11 @@ def to_plot(num, dictionary, embs):
     plot_embs = []
     i = 0
     while i < num:
-        plot_embs.append(embs[dictionary[i]])
+        plot_embs.append(embs[dictionary.keys()[i]])
         i = i + 1
     return plot_embs
 
-def load_dictionary(file_name):
-    dictionary = []
-    with open(file_name, "r") as f:
-        try:
-            while True:
-                for token in pickle.load(f):
-                    print(token)
-                    import unicodedata
-                    unicodedata.normalize('NFKD', token[0]).encode('ascii','ignore')
-                    dictionary.append(token[0])
-        except EOFError:
-            pass
-    return dictionary
+
 def write_txt(df):
     df.write.csv('preprocessed.csv')
 
@@ -144,37 +122,13 @@ dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws("%", *logs_f
 #dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws(" ", *logs_fields)).alias("lxplus")
 #dataframe_with_bucket = dataframe_with_bucket.select(*logs_fields).alias("lxplus")
 
-column_temp = "concat_ws(%, duration_bucketized_enc, protocol_type, service, flag, src_bytes_enc, dst_bytes_bucketized_enc, land_enc, wrong_fragment_enc, urgent_enc, hot_enc, num_failed_logins_enc, logged_in_enc, num_compromised_enc, root_shell_enc, su_attempted_enc, num_root_enc, num_file_creations_enc, num_shells_enc, num_access_files_enc, num_outbound_cmds_enc, is_host_login_enc, is_guest_login_enc, count_bucketized_enc, srv_count_bucketized_enc, serror_rate_bucketized_enc, srv_serror_rate_bucketized_enc, rerror_rate_bucketized_enc, srv_rerror_rate_bucketized_enc, same_srv_rate_bucketized_enc, diff_srv_rate_bucketized_enc, srv_diff_host_rate_enc, dst_host_count_enc, dst_host_srv_count_enc, dst_host_same_srv_rate_enc, dst_host_diff_srv_rate_enc, dst_host_same_src_port_rate_enc, dst_host_srv_diff_host_rate_enc, dst_host_serror_rate_enc, dst_host_srv_serror_rate_enc, dst_host_rerror_rate_enc, dst_host_srv_rerror_rate_enc)"
+#column_temp = "concat_ws(%, duration_bucketized_enc, protocol_type, service, flag, src_bytes_enc, dst_bytes_bucketized_enc, land_enc, wrong_fragment_enc, urgent_enc, hot_enc, num_failed_logins_enc, logged_in_enc, num_compromised_enc, root_shell_enc, su_attempted_enc, num_root_enc, num_file_creations_enc, num_shells_enc, num_access_files_enc, num_outbound_cmds_enc, is_host_login_enc, is_guest_login_enc, count_bucketized_enc, srv_count_bucketized_enc, serror_rate_bucketized_enc, srv_serror_rate_bucketized_enc, rerror_rate_bucketized_enc, srv_rerror_rate_bucketized_enc, same_srv_rate_bucketized_enc, diff_srv_rate_bucketized_enc, srv_diff_host_rate_enc, dst_host_count_enc, dst_host_srv_count_enc, dst_host_same_srv_rate_enc, dst_host_diff_srv_rate_enc, dst_host_same_src_port_rate_enc, dst_host_srv_diff_host_rate_enc, dst_host_serror_rate_enc, dst_host_srv_serror_rate_enc, dst_host_rerror_rate_enc, dst_host_srv_rerror_rate_enc)"
 
 #dataframe_with_bucket.show(20,False)
 
 
 logs_rdd = dataframe_with_bucket.rdd.map(lambda s : s[0].split('%'))
 
-
-'''
-f = open("data/kddcup.data_10_percent_corrected", "r")
-logs = []
-answers = []
-for log in f:
-    tokens = log.split(',')
-    features = log.split(',')[ :-1]
-    answers.append(tokens[-1]) # -1 means that we take the last element from the list
-    #for i in range(0 , len(field_names)):
-        #features[i] = str(features[i]) + field_names[i]
-    logs.append(features)
-
-for index, answer in enumerate(answers):
-    answers[index]= answer.rstrip()
-    answers[index] = answers[index].strip('.')
-
-'''
-
-
-# for counting unique values
-# #lstemp = [log[22] for log in logs]
-#temp = list(set(lstemp))
-#print(len(temp))
 
 def save_word2vec(vectors,dictionary):
     vecs_python = {}
@@ -195,17 +149,13 @@ def save_word2vec(vectors,dictionary):
     temp_X = word2vec_results_dict.values()
 
     X = np.vstack(temp_X)
-    #y = y = np.hstack(vecs_python[key]
-                      #for key in vectors.keys())
 
 
-    #X_embedded = TSNE(n_components=2).fit_transform(X)
-    X_embedded = TSNE(random_state = RS).fit_transform(X)
+    X_embedded = TSNE(perplexity=100, n_iter=5000).fit_transform(X)
+    plot = to_plot(500, dictionary, word2vec_results_dict)
 
-    #plot = to_plot(500, dictionary, word2vec_results_dict)
-    #tsne = TSNE(perplexity=100, n_iter=5000)
     np.set_printoptions(suppress=True)
-    #Y = tsne.fit_transform(plot)
+
 
     lol = []
     for i in range(1000):
@@ -215,9 +165,11 @@ def save_word2vec(vectors,dictionary):
     for label, x, y in zip(lol[:500], X_embedded[:, 0], X_embedded[:, 1]):
         plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
     plt.show()
-    plt.scatter(X_embedded[:, 0], word2vec_results_dict[:, 1])
-    for label, x, y in zip(word2vec_results_dict[:500], X_embedded[:, 0], X_embedded[:, 1]):
-        plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
+    plt.scatter(X_embedded[:, 0], X_embedded[:, 1])
+
+
+    #for label, x, y in zip(dictionary[:500], X_embedded[:, 0], X_embedded[:, 1]):
+        #plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
     plt.show()
 
 
@@ -237,14 +189,6 @@ def save_word2vec(vectors,dictionary):
 def Word2_vec():
     # Input data: Each row is a bag of words from a sentence or document.
 
-    # train word2vec
-    documentDF = spark.createDataFrame([
-        ("Hi I heard about Spark".split(" "),),
-        ("I wish Java could use case classes".split(" "),),
-        ("Logistic regression models are neat".split(" "),)
-    ], ["text"])
-
-
     word2vec = Word2Vec()
     word2vec.setNumPartitions(9).setVectorSize(100).setMinCount(1).setWindowSize(3).setLearningRate(0.00005)
     model = word2vec.fit(logs_rdd)
@@ -257,14 +201,15 @@ def Word2_vec():
     temp_dict1 = [i[0] for i in frequent_words]
     temp_dict2 = [i[1] for i in frequent_words]
 
-    new_items = []
-    import unicodedata
-    for i in temp_dict1:
-        print (i)
-        unicodedata.normalize('NFKD', i).encode('ascii', 'ignore')
-        new_items.append(i)
+    print(temp_dict1)
+    #new_items = []
+    #import unicodedata
+    #for i in temp_dict1:
+        #print (i)
+        #unicodedata.normalize('NFKD', i).encode('ascii', 'ignore')
+        #new_items.append(i)
 
-    print(new_items)
+    #print(new_items)
     dictionaryFinal = dict(zip(temp_dict1, temp_dict2))
     #print(dictionaryFinal)
 
@@ -275,7 +220,9 @@ def Word2_vec():
 
     #dictionary = load_dictionary('word_count_results.pickle')
     # word2vec_dict= save_word2vec(model.getVectors())
+
     save_word2vec(model.getVectors(), dictionaryFinal)
+
     #with open("word2vec_dir.pickle" + '_vocab.pickle', 'wb') as handle:
         #pickle.dump(wordCount.collect(), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
