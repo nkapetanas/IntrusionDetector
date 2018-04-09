@@ -12,60 +12,6 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 
-spark = SparkSession.builder.appName('ids').getOrCreate()
-
-
-
-schema = StructType([
-    #StructField("start_Signal", StringType(), True),
-    StructField("duration", StringType(), True),
-    StructField("protocol_type", StringType(), True),
-    StructField("service", StringType(), True),
-    StructField("flag", StringType(), True),
-    StructField("src_bytes", StringType(), True),
-    StructField("dst_bytes", StringType(), True),
-    StructField("land", StringType(), True),
-    StructField("wrong_fragment", StringType(), True),
-    StructField("urgent", StringType(), True),
-    StructField("hot", StringType(), True),
-    StructField("num_failed_logins", StringType(), True),
-    StructField("logged_in", StringType(), True),
-    StructField("num_compromised", StringType(), True),
-    StructField("root_shell", StringType(), True),
-    StructField("su_attempted", StringType(), True),
-    StructField("num_root", StringType(), True),
-    StructField("num_file_creations", StringType(), True),
-    StructField("num_shells", StringType(), True),
-    StructField("num_access_files", StringType(), True),
-    StructField("num_outbound_cmds", StringType(), True),
-    StructField("is_host_login", StringType(), True),
-    StructField("is_guest_login", StringType(), True),
-    StructField("count", StringType(), True),
-    StructField("srv_count", StringType(), True),
-    StructField("serror_rate", StringType(), True),
-    StructField("srv_serror_rate", StringType(), True),
-    StructField("rerror_rate", StringType(), True),
-    StructField("srv_rerror_rate", StringType(), True),
-    StructField("same_srv_rate", StringType(), True),
-    StructField("diff_srv_rate", StringType(), True),
-    StructField("srv_diff_host_rate", StringType(), True),
-    StructField("dst_host_count", StringType(), True),
-    StructField("dst_host_srv_count", StringType(), True),
-    StructField("dst_host_same_srv_rate", StringType(), True),
-    StructField("dst_host_diff_srv_rate", StringType(), True),
-    StructField("dst_host_same_src_port_rate", StringType(), True),
-    StructField("dst_host_srv_diff_host_rate", StringType(), True),
-    StructField("dst_host_serror_rate", StringType(), True),
-    StructField("dst_host_srv_serror_rate", StringType(), True),
-    StructField("dst_host_rerror_rate", StringType(), True),
-    StructField("dst_host_srv_rerror_rate", StringType(), True),
-    StructField("anws", StringType(), True)
-])
-
-final_struc = StructType(fields = schema)
-df = spark.read.csv('data/kddcup.data_10_percent_corrected',schema=final_struc, inferSchema = True, header=True)
-
-
 def to_plot(num, dictionary, embs):
     plot_embs = []
     i = 0
@@ -73,10 +19,6 @@ def to_plot(num, dictionary, embs):
         plot_embs.append(embs[dictionary.keys()[i]])
         i = i + 1
     return plot_embs
-
-
-def write_txt(df):
-    df.write.csv('preprocessed.csv')
 
 # we pass a df and the field column we want to bucketize
 def bucketize(df, field, min=-10, max=10, step=100):
@@ -90,17 +32,7 @@ def bucketize(df, field, min=-10, max=10, step=100):
     bucketizer = Bucketizer(splits=buckets, inputCol=field,
                             outputCol=field + '_bucketized')
     bucketized_features = bucketizer.transform(df)
-    #bucketized_features.show()
     return bucketized_features
-
-
-continues_data_for_bucket_labels = ["duration","dst_bytes","count","serror_rate","rerror_rate","same_srv_rate","diff_srv_rate","srv_count","srv_serror_rate","srv_rerror_rate"]
-dataframe_with_bucket = df
-for col in continues_data_for_bucket_labels:
-    dataframe_with_bucket = bucketize(dataframe_with_bucket, col)
-
-#dataframe_with_bucket.show()
-
 
 
 def field_name_changer(df, field):
@@ -109,53 +41,40 @@ def field_name_changer(df, field):
     field_udf = func.udf(func_inner, types.StringType())
     return df.withColumn(field + '_enc', field_udf(field))
 
-field_names = [ "duration_bucketized","src_bytes", "dst_bytes_bucketized", "land", "wrong_fragment", "urgent", "hot", "num_failed_logins", "logged_in", "num_compromised", "root_shell", "su_attempted", "num_root", "num_file_creations", "num_shells", "num_access_files", "num_outbound_cmds", "is_host_login", "is_guest_login", "count_bucketized", "srv_count_bucketized", "serror_rate_bucketized", "srv_serror_rate_bucketized", "rerror_rate_bucketized", "srv_rerror_rate_bucketized", "same_srv_rate_bucketized", "diff_srv_rate_bucketized", "srv_diff_host_rate", "dst_host_count", "dst_host_srv_count", "dst_host_same_srv_rate", "dst_host_diff_srv_rate", "dst_host_same_src_port_rate", "dst_host_srv_diff_host_rate", "dst_host_serror_rate", "dst_host_srv_serror_rate", "dst_host_rerror_rate", "dst_host_srv_rerror_rate"]
 
-for field in field_names:
-    #dataframe_with_bucket.show()
-    dataframe_with_bucket = field_name_changer(dataframe_with_bucket,field)
-
-logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_bucketized_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(',')
-
-dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws("%", *logs_fields)).alias("lxplus")
-
-#dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws(" ", *logs_fields)).alias("lxplus")
-#dataframe_with_bucket = dataframe_with_bucket.select(*logs_fields).alias("lxplus")
-
-#column_temp = "concat_ws(%, duration_bucketized_enc, protocol_type, service, flag, src_bytes_enc, dst_bytes_bucketized_enc, land_enc, wrong_fragment_enc, urgent_enc, hot_enc, num_failed_logins_enc, logged_in_enc, num_compromised_enc, root_shell_enc, su_attempted_enc, num_root_enc, num_file_creations_enc, num_shells_enc, num_access_files_enc, num_outbound_cmds_enc, is_host_login_enc, is_guest_login_enc, count_bucketized_enc, srv_count_bucketized_enc, serror_rate_bucketized_enc, srv_serror_rate_bucketized_enc, rerror_rate_bucketized_enc, srv_rerror_rate_bucketized_enc, same_srv_rate_bucketized_enc, diff_srv_rate_bucketized_enc, srv_diff_host_rate_enc, dst_host_count_enc, dst_host_srv_count_enc, dst_host_same_srv_rate_enc, dst_host_diff_srv_rate_enc, dst_host_same_src_port_rate_enc, dst_host_srv_diff_host_rate_enc, dst_host_serror_rate_enc, dst_host_srv_serror_rate_enc, dst_host_rerror_rate_enc, dst_host_srv_rerror_rate_enc)"
-
-#dataframe_with_bucket.show(20,False)
-
-
-logs_rdd = dataframe_with_bucket.rdd.map(lambda s : s[0].split('%'))
-
-
-def save_word2vec(vectors,dictionary):
+def save_word2vec(vectors):
     vecs_python = {}
     for key in vectors.keys():
         # print(key)
         vecs_python[key] = list(vectors[key])
-    print('The vocabulary size is:' + str(len(vecs_python)))
-
-    #np.array(vecs_python).dump(open('array.npy', 'wb'))
-    #a = np.array(vecs_python)
-
-    #np.set_printoptions(threshold=np.nan)
-    #print(a)
-    #for key in vectors.keys():
-        #print("The key is:", key, "and the values are:", vecs_python[key] )
+    #print('The vocabulary size is:' + str(len(vecs_python)))
 
     word2vec_results_dict = {key : vecs_python[key] for key in vectors.keys()}
+
+
+    #with open('dict.csv', 'wb') as csv_file:
+        #writer = csv.writer(csv_file)
+        #for key, value in word2vec_results_dict.items():
+            #writer.writerow([key, value])
+
+    # if we want to write the dictionary to csv uncomment the code
+    #with open('word2vec_dict.txt', 'wb') as handle:
+        #wr = csv.writer(handle, quoting=csv.QUOTE_ALL)
+        #wr.writerow(vecs_python)
+        #for item in vecs_python:
+            #handle.write(item)
+    return word2vec_results_dict
+
+def results_visualization(word2vec_results_dict,dictionary):
+
     temp_X = word2vec_results_dict.values()
 
     X = np.vstack(temp_X)
-
 
     X_embedded = TSNE(perplexity=100, n_iter=5000).fit_transform(X)
     plot = to_plot(500, dictionary, word2vec_results_dict)
 
     np.set_printoptions(suppress=True)
-
 
     lol = []
     for i in range(1000):
@@ -167,26 +86,12 @@ def save_word2vec(vectors,dictionary):
     plt.show()
     plt.scatter(X_embedded[:, 0], X_embedded[:, 1])
 
-
-    #for label, x, y in zip(dictionary[:500], X_embedded[:, 0], X_embedded[:, 1]):
-        #plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
+    # for label, x, y in zip(dictionary[:500], X_embedded[:, 0], X_embedded[:, 1]):
+    # plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
     plt.show()
 
 
-    #with open('word2vec_dict.txt', 'wb') as handle:
-        #wr = csv.writer(handle, quoting=csv.QUOTE_ALL)
-        #wr.writerow(vecs_python)
-        #for item in vecs_python:
-            #handle.write(item)
-    with open('dict.csv', 'wb') as csv_file:
-        writer = csv.writer(csv_file)
-        for key, value in word2vec_results_dict.items():
-            writer.writerow([key, value])
-    #return vecs_python
-
-
-
-def Word2_vec():
+def Word2_vec(logs_rdd):
     # Input data: Each row is a bag of words from a sentence or document.
 
     word2vec = Word2Vec()
@@ -221,7 +126,8 @@ def Word2_vec():
     #dictionary = load_dictionary('word_count_results.pickle')
     # word2vec_dict= save_word2vec(model.getVectors())
 
-    save_word2vec(model.getVectors(), dictionaryFinal)
+    return model.getVectors(), dictionaryFinal
+    #save_word2vec(model.getVectors(), dictionaryFinal)
 
     #with open("word2vec_dir.pickle" + '_vocab.pickle', 'wb') as handle:
         #pickle.dump(wordCount.collect(), handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -235,7 +141,92 @@ def Word2_vec():
     ##########################################
 
 
-Word2_vec()
 
-spark.stop()
 
+
+if __name__ == '__main__':
+    spark = SparkSession.builder.appName('ids').getOrCreate()
+
+    schema = StructType([
+        # StructField("start_Signal", StringType(), True),
+        StructField("duration", StringType(), True),
+        StructField("protocol_type", StringType(), True),
+        StructField("service", StringType(), True),
+        StructField("flag", StringType(), True),
+        StructField("src_bytes", StringType(), True),
+        StructField("dst_bytes", StringType(), True),
+        StructField("land", StringType(), True),
+        StructField("wrong_fragment", StringType(), True),
+        StructField("urgent", StringType(), True),
+        StructField("hot", StringType(), True),
+        StructField("num_failed_logins", StringType(), True),
+        StructField("logged_in", StringType(), True),
+        StructField("num_compromised", StringType(), True),
+        StructField("root_shell", StringType(), True),
+        StructField("su_attempted", StringType(), True),
+        StructField("num_root", StringType(), True),
+        StructField("num_file_creations", StringType(), True),
+        StructField("num_shells", StringType(), True),
+        StructField("num_access_files", StringType(), True),
+        StructField("num_outbound_cmds", StringType(), True),
+        StructField("is_host_login", StringType(), True),
+        StructField("is_guest_login", StringType(), True),
+        StructField("count", StringType(), True),
+        StructField("srv_count", StringType(), True),
+        StructField("serror_rate", StringType(), True),
+        StructField("srv_serror_rate", StringType(), True),
+        StructField("rerror_rate", StringType(), True),
+        StructField("srv_rerror_rate", StringType(), True),
+        StructField("same_srv_rate", StringType(), True),
+        StructField("diff_srv_rate", StringType(), True),
+        StructField("srv_diff_host_rate", StringType(), True),
+        StructField("dst_host_count", StringType(), True),
+        StructField("dst_host_srv_count", StringType(), True),
+        StructField("dst_host_same_srv_rate", StringType(), True),
+        StructField("dst_host_diff_srv_rate", StringType(), True),
+        StructField("dst_host_same_src_port_rate", StringType(), True),
+        StructField("dst_host_srv_diff_host_rate", StringType(), True),
+        StructField("dst_host_serror_rate", StringType(), True),
+        StructField("dst_host_srv_serror_rate", StringType(), True),
+        StructField("dst_host_rerror_rate", StringType(), True),
+        StructField("dst_host_srv_rerror_rate", StringType(), True),
+        StructField("anws", StringType(), True)
+    ])
+
+    final_struc = StructType(fields=schema)
+    df = spark.read.csv('data/kddcup.data_10_percent_corrected', schema=final_struc, inferSchema=True, header=True)
+
+    continues_data_for_bucket_labels = ["duration", "dst_bytes", "count", "serror_rate", "rerror_rate", "same_srv_rate",
+                                        "diff_srv_rate", "srv_count", "srv_serror_rate", "srv_rerror_rate"]
+    dataframe_with_bucket = df
+    for col in continues_data_for_bucket_labels:
+        dataframe_with_bucket = bucketize(dataframe_with_bucket, col)
+
+    field_names = ["duration_bucketized", "src_bytes", "dst_bytes_bucketized", "land", "wrong_fragment", "urgent",
+                   "hot", "num_failed_logins", "logged_in", "num_compromised", "root_shell", "su_attempted", "num_root",
+                   "num_file_creations", "num_shells", "num_access_files", "num_outbound_cmds", "is_host_login",
+                   "is_guest_login", "count_bucketized", "srv_count_bucketized", "serror_rate_bucketized",
+                   "srv_serror_rate_bucketized", "rerror_rate_bucketized", "srv_rerror_rate_bucketized",
+                   "same_srv_rate_bucketized", "diff_srv_rate_bucketized", "srv_diff_host_rate", "dst_host_count",
+                   "dst_host_srv_count", "dst_host_same_srv_rate", "dst_host_diff_srv_rate",
+                   "dst_host_same_src_port_rate", "dst_host_srv_diff_host_rate", "dst_host_serror_rate",
+                   "dst_host_srv_serror_rate", "dst_host_rerror_rate", "dst_host_srv_rerror_rate"]
+
+    for field in field_names:
+        dataframe_with_bucket = field_name_changer(dataframe_with_bucket, field)
+
+    logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_bucketized_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
+        ',')
+
+    dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws("%", *logs_fields)).alias("lxplus")
+
+
+    logs_rdd = dataframe_with_bucket.rdd.map(lambda s: s[0].split('%'))
+
+    model_getVectors, dictionaryFinal = Word2_vec(logs_rdd)
+
+    word2vec_results_dict = save_word2vec(model_getVectors)
+
+    results_visualization(word2vec_results_dict,dictionaryFinal)
+
+    spark.stop()
