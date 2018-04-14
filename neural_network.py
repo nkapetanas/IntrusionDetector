@@ -12,6 +12,10 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 
+DICTIONARY_WORD2VEC = "dict_word2vec.csv"
+DICTIONARY_FREQUENT_WORD2VEC = "dict_frequent_word2vec.csv"
+KDD_DATA = "data/kddcup.data_10_percent_corrected"
+
 def to_plot(num, dictionary, embs):
     plot_embs = []
     i = 0
@@ -42,7 +46,7 @@ def field_name_changer(df, field):
     return df.withColumn(field + '_enc', field_udf(field))
 
 
-def save_word2vec(vectors):
+def save_word2vec(vectors,dictionaryOfFrequentWords):
     vecs_python = {}
     for key in vectors.keys():
         # print(key)
@@ -52,10 +56,15 @@ def save_word2vec(vectors):
     word2vec_results_dict = {key : vecs_python[key] for key in vectors.keys()}
 
 
-    #with open('dict.csv', 'wb') as csv_file:
-        #writer = csv.writer(csv_file)
-        #for key, value in word2vec_results_dict.items():
-            #writer.writerow([key, value])
+    with open(DICTIONARY_WORD2VEC, 'wb') as csv_file:
+        writer = csv.writer(csv_file)
+        for key, value in word2vec_results_dict.items():
+            writer.writerow([key, value])
+
+    with open(DICTIONARY_FREQUENT_WORD2VEC, 'wb') as csv_file:
+        writer = csv.writer(csv_file)
+        for key, value in dictionaryOfFrequentWords.items():
+            writer.writerow([key, value])
 
     # if we want to write the dictionary to csv uncomment the code
     #with open('word2vec_dict.txt', 'wb') as handle:
@@ -65,7 +74,21 @@ def save_word2vec(vectors):
             #handle.write(item)
     return word2vec_results_dict
 
-def results_visualization(word2vec_results_dict,dictionary):
+def results_visualization():
+        #word2vec_results_dict,dictionary):
+
+    with open(DICTIONARY_WORD2VEC, 'rb') as csv_file:
+        reader = csv.reader(csv_file)
+        word2vec_results_dict = dict(reader)
+
+    with open(DICTIONARY_FREQUENT_WORD2VEC, 'rb') as csv_file:
+        reader = csv.reader(csv_file)
+        dictionary = dict(reader)
+
+
+
+    #word2vec_results_dict = dict(map(lambda kv: (kv[0], f(kv[1])), word2vec_results_dict.items()))
+
 
     temp_X = word2vec_results_dict.values()
 
@@ -115,7 +138,7 @@ def Word2_vec(logs_rdd):
         #new_items.append(i)
 
     #print(new_items)
-    dictionaryFinal = dict(zip(temp_dict1, temp_dict2))
+    dictionaryOfFrequentWords = dict(zip(temp_dict1, temp_dict2))
     #print(dictionaryFinal)
 
     #print(temp)
@@ -126,7 +149,9 @@ def Word2_vec(logs_rdd):
     #dictionary = load_dictionary('word_count_results.pickle')
     # word2vec_dict= save_word2vec(model.getVectors())
 
-    return model.getVectors(), dictionaryFinal
+
+
+    return model.getVectors(), dictionaryOfFrequentWords
     #save_word2vec(model.getVectors(), dictionaryFinal)
 
     #with open("word2vec_dir.pickle" + '_vocab.pickle', 'wb') as handle:
@@ -148,7 +173,6 @@ if __name__ == '__main__':
     spark = SparkSession.builder.appName('ids').getOrCreate()
 
     schema = StructType([
-        # StructField("start_Signal", StringType(), True),
         StructField("duration", StringType(), True),
         StructField("protocol_type", StringType(), True),
         StructField("service", StringType(), True),
@@ -194,7 +218,7 @@ if __name__ == '__main__':
     ])
 
     final_struc = StructType(fields=schema)
-    df = spark.read.csv('data/kddcup.data_10_percent_corrected', schema=final_struc, inferSchema=True, header=True)
+    df = spark.read.csv(KDD_DATA, schema=final_struc, inferSchema=True, header=True)
 
     continues_data_for_bucket_labels = ["duration", "dst_bytes", "count", "serror_rate", "rerror_rate", "same_srv_rate",
                                         "diff_srv_rate", "srv_count", "srv_serror_rate", "srv_rerror_rate"]
@@ -223,10 +247,10 @@ if __name__ == '__main__':
 
     logs_rdd = dataframe_with_bucket.rdd.map(lambda s: s[0].split('%'))
 
-    model_getVectors, dictionaryFinal = Word2_vec(logs_rdd)
+    model_getVectors, dictionaryOfFrequentWords = Word2_vec(logs_rdd)
 
-    word2vec_results_dict = save_word2vec(model_getVectors)
+    word2vec_results_dict = save_word2vec(model_getVectors,dictionaryOfFrequentWords)
 
-    results_visualization(word2vec_results_dict,dictionaryFinal)
-
+    #results_visualization(word2vec_results_dict,dictionaryOfFrequentWords)
+    #results_visualization()
     spark.stop()
