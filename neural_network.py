@@ -10,6 +10,7 @@ from pyspark.sql import functions as func
 import csv
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import pickle
 
 
 DICTIONARY_WORD2VEC = "dict_word2vec.csv"
@@ -56,15 +57,22 @@ def save_word2vec(vectors,dictionaryOfFrequentWords):
     word2vec_results_dict = {key : vecs_python[key] for key in vectors.keys()}
 
 
-    with open(DICTIONARY_WORD2VEC, 'wb') as csv_file:
-        writer = csv.writer(csv_file)
-        for key, value in word2vec_results_dict.items():
-            writer.writerow([key, value])
+    # with open(DICTIONARY_WORD2VEC, 'wb') as csv_file:
+    #     writer = csv.writer(csv_file)
+    #     for key, value in word2vec_results_dict.items():
+    #         writer.writerow([key, value])
+    #
+    # with open(DICTIONARY_FREQUENT_WORD2VEC, 'wb') as csv_file:
+    #     writer = csv.writer(csv_file)
+    #     for key, value in dictionaryOfFrequentWords.items():
+    #         writer.writerow([key, value])
 
-    with open(DICTIONARY_FREQUENT_WORD2VEC, 'wb') as csv_file:
-        writer = csv.writer(csv_file)
-        for key, value in dictionaryOfFrequentWords.items():
-            writer.writerow([key, value])
+    with open('temp1.pickle', 'wb') as handle:
+        pickle.dump(word2vec_results_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open('temp2.pickle', 'wb') as handle:
+        pickle.dump(dictionaryOfFrequentWords, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 
     # if we want to write the dictionary to csv uncomment the code
     #with open('word2vec_dict.txt', 'wb') as handle:
@@ -77,16 +85,19 @@ def save_word2vec(vectors,dictionaryOfFrequentWords):
 def results_visualization():
         #word2vec_results_dict,dictionary):
 
-    with open(DICTIONARY_WORD2VEC, 'rb') as csv_file:
-        reader = csv.reader(csv_file)
-        word2vec_results_dict = dict(reader)
+    # with open(DICTIONARY_WORD2VEC, 'r') as csv_file:
+    #     reader = csv.reader(csv_file)
+    #     word2vec_results_dict = dict(reader)
+    #
+    # with open(DICTIONARY_FREQUENT_WORD2VEC, 'r') as csv_file:
+    #     reader = csv.reader(csv_file)
+    #     dictionary = dict(reader)
 
-    with open(DICTIONARY_FREQUENT_WORD2VEC, 'rb') as csv_file:
-        reader = csv.reader(csv_file)
-        dictionary = dict(reader)
+    with open('temp1.pickle', 'rb') as handle:
+        word2vec_results_dict = pickle.load(handle)
 
-
-
+    with open('temp2.pickle', 'rb') as handle:
+        dictionary = pickle.load(handle)
     #word2vec_results_dict = dict(map(lambda kv: (kv[0], f(kv[1])), word2vec_results_dict.items()))
 
 
