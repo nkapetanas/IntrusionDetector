@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 import pickle
 
 
-DICTIONARY_WORD2VEC = "dict_word2vec.csv"
-DICTIONARY_FREQUENT_WORD2VEC = "dict_frequent_word2vec.csv"
+DICTIONARY_WORD2VEC = "dict_word2vec.pickle"
+DICTIONARY_FREQUENT_WORD2VEC = "dict_frequent_word2vec.pickle"
 KDD_DATA = "data/kddcup.data_10_percent_corrected"
 
 def to_plot(num, dictionary, embs):
@@ -67,10 +67,10 @@ def save_word2vec(vectors,dictionaryOfFrequentWords):
     #     for key, value in dictionaryOfFrequentWords.items():
     #         writer.writerow([key, value])
 
-    with open('temp1.pickle', 'wb') as handle:
+    with open(DICTIONARY_WORD2VEC, 'wb') as handle:
         pickle.dump(word2vec_results_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    with open('temp2.pickle', 'wb') as handle:
+    with open(DICTIONARY_FREQUENT_WORD2VEC, 'wb') as handle:
         pickle.dump(dictionaryOfFrequentWords, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -93,10 +93,10 @@ def results_visualization():
     #     reader = csv.reader(csv_file)
     #     dictionary = dict(reader)
 
-    with open('temp1.pickle', 'rb') as handle:
+    with open(DICTIONARY_WORD2VEC, 'rb') as handle:
         word2vec_results_dict = pickle.load(handle)
 
-    with open('temp2.pickle', 'rb') as handle:
+    with open(DICTIONARY_FREQUENT_WORD2VEC, 'rb') as handle:
         dictionary = pickle.load(handle)
     #word2vec_results_dict = dict(map(lambda kv: (kv[0], f(kv[1])), word2vec_results_dict.items()))
 
@@ -105,7 +105,7 @@ def results_visualization():
 
     X = np.vstack(temp_X)
 
-    X_embedded = TSNE(perplexity=100, n_iter=5000).fit_transform(X)
+    X_embedded = TSNE(perplexity=100, n_iter=250).fit_transform(X)
     plot = to_plot(500, dictionary, word2vec_results_dict)
 
     np.set_printoptions(suppress=True)
