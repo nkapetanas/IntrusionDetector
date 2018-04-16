@@ -148,11 +148,7 @@ def Word2_vec(logs_rdd):
         #unicodedata.normalize('NFKD', i).encode('ascii', 'ignore')
         #new_items.append(i)
 
-    #print(new_items)
     dictionaryOfFrequentWords = dict(zip(temp_dict1, temp_dict2))
-    #print(dictionaryFinal)
-
-    #print(temp)
 
     #with open('word_count_results.pickle', 'wb') as handle:
         #pickle.dump(wordCount.collect(), handle, protocol=pickle.HIGHEST_PROTOCOL)
