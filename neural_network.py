@@ -15,7 +15,8 @@ import pickle
 
 DICTIONARY_WORD2VEC = "dict_word2vec.pickle"
 DICTIONARY_FREQUENT_WORD2VEC = "dict_frequent_word2vec.pickle"
-KDD_DATA = "data/kddcup.data_10_percent_corrected"
+#KDD_DATA = "data/kddcup.data_10_percent_corrected"
+KDD_DATA = "data/kddcup.data.corrected"
 
 def to_plot(num, dictionary, embs):
     plot_embs = []
@@ -36,6 +37,7 @@ def bucketize(df, field, min=-10, max=10, step=100):
     buckets = np.concatenate([[-float('inf')], buckets, [float('inf')]]).tolist()
     bucketizer = Bucketizer(splits=buckets, inputCol=field,
                             outputCol=field + '_bucketized')
+    print("column is: ",field)
     bucketized_features = bucketizer.transform(df)
     return bucketized_features
 
@@ -100,10 +102,7 @@ def results_visualization():
         dictionary = pickle.load(handle)
     #word2vec_results_dict = dict(map(lambda kv: (kv[0], f(kv[1])), word2vec_results_dict.items()))
 
-
-    temp_X = word2vec_results_dict.values()
-
-    X = np.vstack(temp_X)
+    X = np.vstack(word2vec_results_dict.values())
 
     X_embedded = TSNE(perplexity=100, n_iter=250).fit_transform(X)
     plot = to_plot(500, dictionary, word2vec_results_dict)
@@ -126,37 +125,19 @@ def results_visualization():
 
 
 def Word2_vec(logs_rdd):
+
     # Input data: Each row is a bag of words from a sentence or document.
 
     word2vec = Word2Vec()
     word2vec.setNumPartitions(9).setVectorSize(100).setMinCount(1).setWindowSize(3).setLearningRate(0.00005)
     model = word2vec.fit(logs_rdd)
 
-
-    ###########################################
     wordCount = logs_rdd.flatMap(lambda line: line).map(lambda word: (word, 1)).reduceByKey(lambda a, b: a + b).sortBy(lambda x: -x[1])
-    #wordCount.foreach(print)
     frequent_words = wordCount.top(1000, key=None)
     temp_dict1 = [i[0] for i in frequent_words]
     temp_dict2 = [i[1] for i in frequent_words]
 
-    print(temp_dict1)
-    #new_items = []
-    #import unicodedata
-    #for i in temp_dict1:
-        #print (i)
-        #unicodedata.normalize('NFKD', i).encode('ascii', 'ignore')
-        #new_items.append(i)
-
     dictionaryOfFrequentWords = dict(zip(temp_dict1, temp_dict2))
-
-    #with open('word_count_results.pickle', 'wb') as handle:
-        #pickle.dump(wordCount.collect(), handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    #dictionary = load_dictionary('word_count_results.pickle')
-    # word2vec_dict= save_word2vec(model.getVectors())
-
-
 
     return model.getVectors(), dictionaryOfFrequentWords
     #save_word2vec(model.getVectors(), dictionaryFinal)
@@ -227,13 +208,15 @@ if __name__ == '__main__':
     final_struc = StructType(fields=schema)
     df = spark.read.csv(KDD_DATA, schema=final_struc, inferSchema=True, header=True)
 
-    continues_data_for_bucket_labels = ["duration", "dst_bytes", "count", "serror_rate", "rerror_rate", "same_srv_rate",
+    # continues_data_for_bucket_labels = ["duration", "dst_bytes", "count", "serror_rate", "rerror_rate", "same_srv_rate",
+    #                                     "diff_srv_rate", "srv_count", "srv_serror_rate", "srv_rerror_rate"]
+    continues_data_for_bucket_labels = ["duration", "count", "serror_rate", "rerror_rate", "same_srv_rate",
                                         "diff_srv_rate", "srv_count", "srv_serror_rate", "srv_rerror_rate"]
     dataframe_with_bucket = df
     for col in continues_data_for_bucket_labels:
         dataframe_with_bucket = bucketize(dataframe_with_bucket, col)
 
-    field_names = ["duration_bucketized", "src_bytes", "dst_bytes_bucketized", "land", "wrong_fragment", "urgent",
+    field_names = ["duration_bucketized", "src_bytes", "dst_bytes", "land", "wrong_fragment", "urgent",
                    "hot", "num_failed_logins", "logged_in", "num_compromised", "root_shell", "su_attempted", "num_root",
                    "num_file_creations", "num_shells", "num_access_files", "num_outbound_cmds", "is_host_login",
                    "is_guest_login", "count_bucketized", "srv_count_bucketized", "serror_rate_bucketized",
@@ -246,8 +229,11 @@ if __name__ == '__main__':
     for field in field_names:
         dataframe_with_bucket = field_name_changer(dataframe_with_bucket, field)
 
-    logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_bucketized_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
-        ',')
+    # logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_bucketized_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
+    #     ',')
+    #"dst_bytes_bucketized"
+    logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
+    ',')
 
     dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws("%", *logs_fields)).alias("lxplus")
 
