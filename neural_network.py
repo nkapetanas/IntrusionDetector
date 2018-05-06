@@ -11,8 +11,10 @@ import csv
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import pickle
+# import unicodedata
+from itertools import islice
 
-
+#DICTIONARY_WORD2VEC = "dict_word2vec_win5.pickle"
 DICTIONARY_WORD2VEC = "dict_word2vec.pickle"
 DICTIONARY_FREQUENT_WORD2VEC = "dict_frequent_word2vec.pickle"
 #KDD_DATA = "data/kddcup.data_10_percent_corrected"
@@ -41,6 +43,10 @@ def bucketize(df, field, min=-10, max=10, step=100):
     bucketized_features = bucketizer.transform(df)
     return bucketized_features
 
+
+def take(n, iterable):
+    "Return first n items of the iterable as a list"
+    return list(islice(iterable, n))
 
 def field_name_changer(df, field):
     def func_inner(value):
@@ -104,11 +110,17 @@ def results_visualization():
 
     X = np.vstack(word2vec_results_dict.values())
 
-    X_embedded = TSNE(perplexity=100, n_iter=250).fit_transform(X)
+    # for k,i in dictionary.items():
+    #     new_key = unicodedata.normalize('NFKD', k).encode('ascii', 'ignore')
+    #     dictionary[new_key] = dictionary.pop(k)
+    #     dictionary[new_key] = str(i)
+
+
+    # X_embedded = TSNE(perplexity=100, n_iter=250).fit_transform(X)
     plot = to_plot(500, dictionary, word2vec_results_dict)
 
     np.set_printoptions(suppress=True)
-
+    X_embedded = TSNE(perplexity=100, n_iter=5000).fit_transform(plot)
     lol = []
     for i in range(1000):
         lol.append('')
@@ -119,10 +131,16 @@ def results_visualization():
     plt.show()
     plt.scatter(X_embedded[:, 0], X_embedded[:, 1])
 
-    # for label, x, y in zip(dictionary[:500], X_embedded[:, 0], X_embedded[:, 1]):
-    # plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
+    #mostFrequentKeys = take(500, dictionary.items())
+    #mostFrequentKeys = sorted(dictionary, key=lambda k: dictionary[k][1])
+    mostFrequentKeys = sorted(dictionary, key=dictionary.get)
+    for label, x, y in zip(mostFrequentKeys[:500], X_embedded[:, 0], X_embedded[:, 1]):
+        plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
+
     plt.show()
 
+    fig = plt.figure()
+    plt.savefig('foo.png', bbox_inches='tight')
 
 def Word2_vec(logs_rdd):
 
@@ -212,9 +230,9 @@ if __name__ == '__main__':
     #                                     "diff_srv_rate", "srv_count", "srv_serror_rate", "srv_rerror_rate"]
     continues_data_for_bucket_labels = ["duration", "count", "serror_rate", "rerror_rate", "same_srv_rate",
                                         "diff_srv_rate", "srv_count", "srv_serror_rate", "srv_rerror_rate"]
-    dataframe_with_bucket = df
-    for col in continues_data_for_bucket_labels:
-        dataframe_with_bucket = bucketize(dataframe_with_bucket, col)
+    # dataframe_with_bucket = df
+    # for col in continues_data_for_bucket_labels:
+    #     dataframe_with_bucket = bucketize(dataframe_with_bucket, col)
 
     field_names = ["duration_bucketized", "src_bytes", "dst_bytes", "land", "wrong_fragment", "urgent",
                    "hot", "num_failed_logins", "logged_in", "num_compromised", "root_shell", "su_attempted", "num_root",
@@ -226,8 +244,8 @@ if __name__ == '__main__':
                    "dst_host_same_src_port_rate", "dst_host_srv_diff_host_rate", "dst_host_serror_rate",
                    "dst_host_srv_serror_rate", "dst_host_rerror_rate", "dst_host_srv_rerror_rate"]
 
-    for field in field_names:
-        dataframe_with_bucket = field_name_changer(dataframe_with_bucket, field)
+    # for field in field_names:
+    #     dataframe_with_bucket = field_name_changer(dataframe_with_bucket, field)
 
     # logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_bucketized_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
     #     ',')
@@ -235,15 +253,15 @@ if __name__ == '__main__':
     logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
     ',')
 
-    dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws("%", *logs_fields)).alias("lxplus")
-
-
-    logs_rdd = dataframe_with_bucket.rdd.map(lambda s: s[0].split('%'))
-
-    model_getVectors, dictionaryOfFrequentWords = Word2_vec(logs_rdd)
-
-    word2vec_results_dict = save_word2vec(model_getVectors,dictionaryOfFrequentWords)
+    # dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws("%", *logs_fields)).alias("lxplus")
+    #
+    #
+    # logs_rdd = dataframe_with_bucket.rdd.map(lambda s: s[0].split('%'))
+    #
+    # model_getVectors, dictionaryOfFrequentWords = Word2_vec(logs_rdd)
+    #
+    # word2vec_results_dict = save_word2vec(model_getVectors,dictionaryOfFrequentWords)
 
     #results_visualization(word2vec_results_dict,dictionaryOfFrequentWords)
-    #results_visualization()
+    results_visualization()
     spark.stop()
