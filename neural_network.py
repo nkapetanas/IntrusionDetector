@@ -15,6 +15,7 @@ import pickle
 from itertools import islice
 
 #DICTIONARY_WORD2VEC = "dict_word2vec_win5.pickle"
+#DICTIONARY_WORD2VEC = "dict_word2vec_win10.pickle"
 DICTIONARY_WORD2VEC = "dict_word2vec.pickle"
 DICTIONARY_FREQUENT_WORD2VEC = "dict_frequent_word2vec.pickle"
 #KDD_DATA = "data/kddcup.data_10_percent_corrected"
@@ -25,6 +26,8 @@ def to_plot(num, dictionary, embs):
     i = 0
     while i < num:
         plot_embs.append(embs[dictionary.keys()[i]])
+        # if you run the above line with python 3 and above change it to
+        #  plot_embs.append(embs[list(dictionary.keys())[i]])
         i = i + 1
     return plot_embs
 
@@ -108,7 +111,7 @@ def results_visualization():
         dictionary = pickle.load(handle)
     #word2vec_results_dict = dict(map(lambda kv: (kv[0], f(kv[1])), word2vec_results_dict.items()))
 
-    X = np.vstack(word2vec_results_dict.values())
+    # X = np.vstack(word2vec_results_dict.values())
 
     # for k,i in dictionary.items():
     #     new_key = unicodedata.normalize('NFKD', k).encode('ascii', 'ignore')
@@ -131,8 +134,6 @@ def results_visualization():
     plt.show()
     plt.scatter(X_embedded[:, 0], X_embedded[:, 1])
 
-    #mostFrequentKeys = take(500, dictionary.items())
-    #mostFrequentKeys = sorted(dictionary, key=lambda k: dictionary[k][1])
     mostFrequentKeys = sorted(dictionary, key=dictionary.get)
     for label, x, y in zip(mostFrequentKeys[:500], X_embedded[:, 0], X_embedded[:, 1]):
         plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
@@ -140,7 +141,6 @@ def results_visualization():
     plt.show()
 
     fig = plt.figure()
-    plt.savefig('foo.png', bbox_inches='tight')
 
 def Word2_vec(logs_rdd):
 
@@ -245,21 +245,21 @@ if __name__ == '__main__':
                    "dst_host_srv_serror_rate", "dst_host_rerror_rate", "dst_host_srv_rerror_rate"]
 
     # for field in field_names:
-    #     dataframe_with_bucket = field_name_changer(dataframe_with_bucket, field)
-
+    #      dataframe_with_bucket = field_name_changer(dataframe_with_bucket, field)
+    #
     # logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_bucketized_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
     #     ',')
-    #"dst_bytes_bucketized"
+    # "dst_bytes_bucketized"
     logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
     ',')
 
     # dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws("%", *logs_fields)).alias("lxplus")
-    #
-    #
+
+
     # logs_rdd = dataframe_with_bucket.rdd.map(lambda s: s[0].split('%'))
-    #
+
     # model_getVectors, dictionaryOfFrequentWords = Word2_vec(logs_rdd)
-    #
+
     # word2vec_results_dict = save_word2vec(model_getVectors,dictionaryOfFrequentWords)
 
     #results_visualization(word2vec_results_dict,dictionaryOfFrequentWords)
