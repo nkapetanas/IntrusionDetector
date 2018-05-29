@@ -57,7 +57,7 @@ class KerasNeuralNetwork():
                     row_to_integer = list(map(vocabulary.get, row[0].split(",")))# kathe tokean sto antistixo integer
                     logs.append(row_to_integer[:-1])
                     labels.append(row_to_integer[-1])
-
+        print(logs)
         """
         
         labels kai opou dei 28166 na valei 0 enw ean einai kati allo vale to 1
@@ -78,10 +78,13 @@ class KerasNeuralNetwork():
         #model.add(Dropout(DROPOUT))
 
         # word_embeddings = Embedding(VOCAB_SIZE, 80)
-        word_embeddings = Input(shape=(VOCAB_SIZE,80), name='input_layer_words')
+        #word_embeddings = Input(shape=(VOCAB_SIZE,80), name='input_layer_words')
+        word_embeddings = Input(shape=(41,), name='input_layer_words')
+
+        embedding_layer = Embedding(input_dim= VOCAB_SIZE, output_dim = 80, input_length=42)(word_embeddings)
 
         # Droupout over word embegdings
-        noise_log_embeddings = SpatialDropout1D(DROPOUT_RATE)(word_embeddings)
+        noise_log_embeddings = Dropout(DROPOUT_RATE)(embedding_layer)
 
         #sentence_embedding = Dropout(DROPOUT_RATE)(word_embeddings)
 
@@ -89,13 +92,9 @@ class KerasNeuralNetwork():
         blstm_dropout = Dropout(DROPOUT_RATE)(BLSTM)
         outputs = Dense(N_HIDDEN, activation='softmax')(blstm_dropout)
 
-        # Log Input Layer (Sentences, Words, Word Embeddings' Dimensionality)
-        log_inputs = Input([VOCAB_SIZE, 80], name='log_inputs')
-
-
 
         # Wrap up Distributed Sentences Network
-        self._model = Model(inputs=word_embeddings, outputs=[outputs])
+        self._model = Model(inputs=[word_embeddings], outputs=[outputs])
 
         self._model.compile(optimizer=Adam(lr=lr, clipvalue=5.0),
                             loss='binary_crossentropy', metrics=['accuracy'])
