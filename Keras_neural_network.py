@@ -1,7 +1,8 @@
 import numpy
 from keras import backend as K
 import keras as k
-from keras.layers import Dense, Masking, Flatten, Convolution1D, MaxPooling1D, Flatten, concatenate
+from keras.callbacks import ModelCheckpoint
+from keras.layers import Dense, Masking, Flatten, Convolution1D, MaxPooling1D, Flatten, concatenate, LSTM
 from keras.models import Sequential
 from keras.layers import Dropout, Input, SpatialDropout1D
 from keras.layers.wrappers import TimeDistributed, Bidirectional
@@ -56,52 +57,28 @@ class KerasNeuralNetwork():
                     #row_to_integer = map(vocabulary.get, row)# kathe tokean sto antistixo integer
                     row_to_integer = list(map(vocabulary.get, row[0].split(",")))# kathe tokean sto antistixo integer
                     logs.append(row_to_integer[:-1])
-                    labels.append(row_to_integer[-1])
-        print(logs)
-        """
-        
-        labels kai opou dei 28166 na valei 0 enw ean einai kati allo vale to 1
+                    if(row_to_integer[-1] == "28166"):
+                        labels.append(np.array([1,0]))
+                    else:
+                        labels.append(np.array([0, 1]))
 
-        
-        """
         return logs, labels
 
 
     def model(self):
 
         # define the model
+        model = Sequential()
+        model.add(Embedding(VOCAB_SIZE, 80, input_length=41))
+        model.add(Dropout(DROPOUT_RATE))
+        model.add(Bidirectional(LSTM(41, activation='tanh', use_bias=True)))
+        model.add(Dropout(DROPOUT_RATE))
+        model.add(Dense(2, activation='softmax'))
+        model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
 
-        # Sentence Input (word embeddings) Layer
+        print(model.summary())
 
-
-        #model.add(Embedding(VOCAB_SIZE, 80 ))
-        #model.add(Dropout(DROPOUT))
-
-        # word_embeddings = Embedding(VOCAB_SIZE, 80)
-        #word_embeddings = Input(shape=(VOCAB_SIZE,80), name='input_layer_words')
-        word_embeddings = Input(shape=(41,), name='input_layer_words')
-
-        embedding_layer = Embedding(input_dim= VOCAB_SIZE, output_dim = 80, input_length=42)(word_embeddings)
-
-        # Droupout over word embegdings
-        noise_log_embeddings = Dropout(DROPOUT_RATE)(embedding_layer)
-
-        #sentence_embedding = Dropout(DROPOUT_RATE)(word_embeddings)
-
-        BLSTM = k.layers.Bidirectional(k.layers.LSTM(200, activation='tanh', recurrent_activation='hard_sigmoid', use_bias=True, kernel_initializer='glorot_uniform', recurrent_initializer='orthogonal', bias_initializer='zeros', unit_forget_bias=True, dropout=0.3, recurrent_dropout=0.3, implementation=1,stateful=False,  return_state=False, go_backwards=False), merge_mode='concat', weights=None)(noise_log_embeddings)
-        blstm_dropout = Dropout(DROPOUT_RATE)(BLSTM)
-        outputs = Dense(N_HIDDEN, activation='softmax')(blstm_dropout)
-
-
-        # Wrap up Distributed Sentences Network
-        self._model = Model(inputs=[word_embeddings], outputs=[outputs])
-
-        self._model.compile(optimizer=Adam(lr=lr, clipvalue=5.0),
-                            loss='binary_crossentropy', metrics=['accuracy'])
-
-        print(self._model.summary())
-
-        return self._model
+        return model
 
     def train(self, vocabulary):
 
@@ -113,16 +90,24 @@ class KerasNeuralNetwork():
         # we split our data as batches
 
         batches = len(logs)//BATCH_SIZE
-        training_logs = np.array_split(logs, batches)
-        training_labels = np.array_split(labels, batches)
+        training_logs = np.array(logs)
+        training_labels = np.array(labels)
 
-        # call the model for training
-        # compile the model
-        #model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['acc'])
-        # summarize the model
+        # checkpoint
+        filepath = "weights.best.hdf5"
+        checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=False,save_weights_only = False, mode='auto',period = 1)
+        callbacks_list = [checkpoint]
 
         # fit the model
-        fit_model_result = model.fit(training_logs, training_labels, batch_size = BATCH_SIZE, epochs = NB_EPOCH, verbose = VERBOSE, validation_split = VALIDATION_SPLIT)
+        fit_model_result = model.fit(training_logs, training_labels, batch_size = batches, epochs = NB_EPOCH, verbose = VERBOSE,callbacks=callbacks_list, validation_split = VALIDATION_SPLIT)
+
+        # serialize model to JSON
+        model_json = model.to_json()
+        with open("model.json", "w") as json_file:
+            json_file.write(model_json)
+        # serialize weights to HDF5
+        model.save_weights("model.h5")
+        print("Saved model to disk")
 
         return model
 

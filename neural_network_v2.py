@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import numpy as np
-from pyspark.python.pyspark.shell import sc
 from pyspark.sql import SparkSession, types
 from pyspark.mllib.feature import Word2Vec
 from pyspark.sql.types import StructType, StructField, StringType
@@ -19,7 +18,8 @@ from itertools import islice
 DICTIONARY_WORD2VEC = "dict_word2vec.pickle"
 DICTIONARY_FREQUENT_WORD2VEC = "dict_frequent_word2vec.pickle"
 #KDD_DATA = "data/kddcup.data_10_percent_corrected"
-KDD_DATA = "data/kddcup.data.corrected"
+#KDD_DATA = "data/kddcup.data.corrected"
+KDD_DATA = "data/kddcup.testdata.unlabeled"
 
 
 class PreprocessData():
@@ -178,8 +178,8 @@ if __name__ == '__main__':
         StructField("dst_host_serror_rate", StringType(), True),
         StructField("dst_host_srv_serror_rate", StringType(), True),
         StructField("dst_host_rerror_rate", StringType(), True),
-        StructField("dst_host_srv_rerror_rate", StringType(), True),
-        StructField("answer", StringType(), True)
+        StructField("dst_host_srv_rerror_rate", StringType(), True)
+        #StructField("answer", StringType(), True)
     ])
 
     final_struc = StructType(fields=schema)
@@ -212,14 +212,16 @@ if __name__ == '__main__':
     # logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_bucketized_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
     #     ',')
     # "dst_bytes_bucketized"
-    logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc,answer""".split(
+
+    # add the answer in the end again
+    logs_fields = """duration_bucketized_enc,protocol_type,service,flag,src_bytes_enc,dst_bytes_enc,land_enc,wrong_fragment_enc,urgent_enc,hot_enc,num_failed_logins_enc,logged_in_enc,num_compromised_enc,root_shell_enc,su_attempted_enc,num_root_enc,num_file_creations_enc,num_shells_enc,num_access_files_enc,num_outbound_cmds_enc,is_host_login_enc,is_guest_login_enc,count_bucketized_enc,srv_count_bucketized_enc,serror_rate_bucketized_enc,srv_serror_rate_bucketized_enc,rerror_rate_bucketized_enc,srv_rerror_rate_bucketized_enc,same_srv_rate_bucketized_enc,diff_srv_rate_bucketized_enc,srv_diff_host_rate_enc,dst_host_count_enc,dst_host_srv_count_enc,dst_host_same_srv_rate_enc,dst_host_diff_srv_rate_enc,dst_host_same_src_port_rate_enc,dst_host_srv_diff_host_rate_enc,dst_host_serror_rate_enc,dst_host_srv_serror_rate_enc,dst_host_rerror_rate_enc,dst_host_srv_rerror_rate_enc""".split(
     ',')
 
     dataframe_with_bucket = dataframe_with_bucket.select(func.concat_ws(",", *logs_fields)).alias("lxplus")
 
-    # dataframe_with_bucket.to_csv('kdd_Preprocessed.csv',sep=',',encoding='utf-8')
+    #dataframe_with_bucket.to_csv('KDD_Test_Data_Preprocessed.csv',sep=',',encoding='utf-8')
 
-    #dataframe_with_bucket.write.csv('kdd_preprocessed.csv')
+    dataframe_with_bucket.write.csv('KDD_Test_Data_Preprocessed.csv')
 
     # In order to call Word2Vec function, uncomment the above 3 lines.
 
