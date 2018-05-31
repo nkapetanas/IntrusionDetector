@@ -1,33 +1,23 @@
-import numpy
 from keras import backend as K
-import keras as k
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, Masking, Flatten, Convolution1D, MaxPooling1D, Flatten, concatenate, LSTM
-from keras.models import Sequential
-from keras.layers import Dropout, Input, SpatialDropout1D
-from keras.layers.wrappers import TimeDistributed, Bidirectional
-from keras.models import Model
+from keras.layers import Dense, LSTM
+from keras.models import Sequential, model_from_json
+from keras.layers import Dropout
 from keras.optimizers import Adam
-from keras.regularizers import l2
-from numpy import array
-from keras.preprocessing.text import one_hot
-from keras.preprocessing.sequence import pad_sequences
+from keras.layers.wrappers import Bidirectional
 import glob
-import sys, os
 import numpy as np
 import csv
 import pickle
 from keras.layers.embeddings import Embedding
-from itertools import islice
-
-
+from sklearn.metrics import fbeta_score
 
 DATA_DIR = "directory which contain csv files with kdd preprocessed data"
 DICTIONARY = "directory which contains the token:interger_code dictionary"
 MODEL_DIRECTORY = "directory with the neural network model"
 BATCH_SIZE = 512
 LEARNING_RATE = 0.0001
-NB_EPOCH = 50
+NB_EPOCH = 5
 VERBOSE = 1
 VALIDATION_SPLIT = 0.2
 VOCAB_SIZE = 30886
@@ -54,14 +44,12 @@ class KerasNeuralNetwork():
                 for row in reader:
                     # the line below transforms the tokens of a log entry to their corresponding integer values
                     # according to the dict dictionary
-                    #row_to_integer = map(vocabulary.get, row)# kathe tokean sto antistixo integer
-                    row_to_integer = list(map(vocabulary.get, row[0].split(",")))# kathe tokean sto antistixo integer
+                    row_to_integer = list(map(vocabulary.get, row[0].split(",")))
                     logs.append(row_to_integer[:-1])
-                    if(row_to_integer[-1] == "28166"):
+                    if(row_to_integer[-1] == 28166):
                         labels.append(np.array([1,0]))
                     else:
-                        labels.append(np.array([0, 1]))
-
+                        labels.append(np.array([0,1]))
         return logs, labels
 
 
@@ -71,6 +59,7 @@ class KerasNeuralNetwork():
         model = Sequential()
         model.add(Embedding(VOCAB_SIZE, 80, input_length=41))
         model.add(Dropout(DROPOUT_RATE))
+        #model.add(LSTM(41, activation='tanh', use_bias=True))
         model.add(Bidirectional(LSTM(41, activation='tanh', use_bias=True)))
         model.add(Dropout(DROPOUT_RATE))
         model.add(Dense(2, activation='softmax'))
@@ -111,33 +100,74 @@ class KerasNeuralNetwork():
 
         return model
 
-    def test(self, model):
+    def test(self, vocabulary):
 
         all_files = glob.glob("KDD_Test_Data_Preprocessed.csv/*.csv")
 
-        test_logs, test_labels = None #self.load_data(all_files, vocabulary)
+        test_logs, test_labels = self.load_test_data(all_files, vocabulary)
 
-        model = self.model()
+        test_logs = np.array(test_logs)
+        test_labels = np.array(test_labels)
 
-        # evaluate the model
-        loss, accuracy = model.evaluate(test_logs, test_labels, verbose=VERBOSE)
+        loaded_model = self.load_saved_model()
+
+        # evaluate loaded model on test data
+        loaded_model.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy',
+                           self.recall,
+                          self.precision])
+        loss, accuracy,recall_r,precision_r  = loaded_model.evaluate(test_logs, test_labels, verbose=VERBOSE)
         print('Accuracy: %f' % (accuracy * 100))
-
-        return
+        # print('F1: %f' % (fmeasure_r * 100))
+        print('Recall: %f' % (recall_r * 100))
+        print('Precision: %f' % (precision_r * 100))
+        # predict = loaded_model.predict( test_logs, verbose=1)
+        #
+        # with open('output.txt', 'w') as f:
+        #     for _list in predict:
+        #         for _string in _list:
+        #             f.write(str(_string) + '\n')
 
     def main(self):
         with open('vocabulary.pickle', 'rb') as handle:
             vocabulary = pickle.load(handle)
 
             self.train(vocabulary)
+            #self.test(vocabulary)
 
-# load the preprocessed KDD dataset
-# dataset = numpy.loadtxt("kdd_preprocessed.csv", delimiter=",")
+    def precision(self, y_true, y_pred):
+        # Calculates the precision
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + K.epsilon())
+        return precision
 
+    def recall(self, y_true, y_pred):
+        # Calculates the recall
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+        recall = true_positives / (possible_positives + K.epsilon())
+        return recall
+
+    def load_saved_model(self):
+
+        # load json and create model
+        json_file = open('model.json', 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        loaded_model = model_from_json(loaded_model_json)
+        # load weights into new model
+        loaded_model.load_weights("model.h5")
+        print("Loaded model from disk")
+
+        return loaded_model
+    # def fmeasure(self, y_true, y_pred):
+    #     # Calculates the f-measure, the harmonic mean of precision and recall.
+    #     return fbeta_score(y_true, y_pred, beta=1)
 
 if __name__ == '__main__':
    nn = KerasNeuralNetwork()
    nn.main()
+
 
 
 
