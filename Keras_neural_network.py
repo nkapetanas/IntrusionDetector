@@ -5,6 +5,8 @@ from keras.models import Sequential, model_from_json
 from keras.layers import Dropout
 from keras.optimizers import Adam
 from keras.layers.wrappers import Bidirectional
+from sklearn.metrics import precision_recall_curve
+import matplotlib.pyplot as plt
 import glob
 import numpy as np
 import csv
@@ -47,7 +49,7 @@ class KerasNeuralNetwork():
                     # the line below transforms the tokens of a log entry to their corresponding integer values
                     # according to the dict dictionary
                     if(trainning):
-                        randomIndex = randint(0, 40)
+                        randomIndex = randint(0, 39)
                         log = row[0].split(",")
                         if random() > (1 / int(dictionaryOfFrequencies.get(log[randomIndex]))):
                             log[randomIndex] = "unknown"
@@ -60,7 +62,9 @@ class KerasNeuralNetwork():
 
                     row_to_integer = list(map(vocabulary.get, log))
                     logs.append(row_to_integer[:-1])
-                    if(row_to_integer[-1] == 28166):
+
+                    #if(row_to_integer[-1] == 28166):
+                    if(row_to_integer[-1] == 2319):
                         labels.append(np.array([1,0]))
                     else:
                         labels.append(np.array([0,1]))
@@ -136,7 +140,7 @@ class KerasNeuralNetwork():
                           self.precision])
         loss, accuracy,recall_r,precision_r  = loaded_model.evaluate(test_logs, test_labels, verbose=VERBOSE)
         print('Accuracy: %f' % (accuracy * 100))
-        # print('F1: %f' % (fmeasure_r * 100))
+        print('F1: %f' % (self.f1measure(precision_r,recall_r) * 100))
         print('Recall: %f' % (recall_r * 100))
         print('Precision: %f' % (precision_r * 100))
         # predict = loaded_model.predict( test_logs, verbose=1)
@@ -153,8 +157,8 @@ class KerasNeuralNetwork():
         with open('word_frequencies.pickle', 'rb') as handle:
             dictionaryOfFrequencies = pickle.load(handle)
 
-            #self.train(vocabulary, dictionaryOfFrequencies)
-            self.test(vocabulary,dictionaryOfFrequencies)
+            self.train(vocabulary, dictionaryOfFrequencies)
+            #self.test(vocabulary,dictionaryOfFrequencies)
 
     def precision(self, y_true, y_pred):
         # Calculates the precision
@@ -182,9 +186,23 @@ class KerasNeuralNetwork():
         print("Loaded model from disk")
 
         return loaded_model
-    def fmeasure(self, y_true, y_pred):
-        # Calculates the f-measure, the harmonic mean of precision and recall.
-        return fbeta_score(y_true, y_pred, beta=1)
+    def f1measure(self, precision, recall):
+        return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+
+
+    def precision_recall_plot(self, y_true, y_pred):
+
+
+        precision, recall, threashold = precision_recall_curve(y_true, y_pred)
+
+        plt.step(recall, precision, color='b', alpha=0.2, where='post')
+        plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
+
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.ylim([0.0, 1.05])
+        plt.xlim([0.0, 1.0])
+        #plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(average_precision))
 
 if __name__ == '__main__':
    nn = KerasNeuralNetwork()
