@@ -12,6 +12,7 @@ import pickle
 from keras.layers.embeddings import Embedding
 from sklearn.metrics import fbeta_score
 
+
 DATA_DIR = "directory which contain csv files with kdd preprocessed data"
 DICTIONARY = "directory which contains the token:interger_code dictionary"
 MODEL_DIRECTORY = "directory with the neural network model"
@@ -26,6 +27,7 @@ DROPOUT_RATE = 0.3
 N_HIDDEN = 2 # einai to posa theloume na vgaloume
 PATH = r'C:/Users/Nick/PycharmProjects/IntrusionDetector/kdd_preprocessed.csv'  # use your path
 lr=0.001
+from random import randint,random
 
 
 
@@ -34,7 +36,7 @@ class KerasNeuralNetwork():
     def __init__(self):
         self._model = None
 
-    def load_data(self, allFiles, vocabulary):
+    def load_data(self, allFiles, vocabulary, dictionaryOfFrequencies, trainning):
         labels = []
         logs = []
 
@@ -44,12 +46,28 @@ class KerasNeuralNetwork():
                 for row in reader:
                     # the line below transforms the tokens of a log entry to their corresponding integer values
                     # according to the dict dictionary
-                    row_to_integer = list(map(vocabulary.get, row[0].split(",")))
+                    if(trainning):
+                        randomIndex = randint(0, 40)
+                        log = row[0].split(",")
+                        if random() > (1 / int(dictionaryOfFrequencies.get(log[randomIndex]))):
+                            log[randomIndex] = "unknown"
+
+                    if(trainning == False):
+                        log = row[0].split(",")
+                        for n, token in enumerate(log):
+                            if (vocabulary.get(token)== None):
+                                log[n]= 'unknown'
+
+                    row_to_integer = list(map(vocabulary.get, log))
                     logs.append(row_to_integer[:-1])
                     if(row_to_integer[-1] == 28166):
                         labels.append(np.array([1,0]))
                     else:
                         labels.append(np.array([0,1]))
+        # with open('logs.txt', 'w') as f:
+        #     for _list in logs:
+        #         for _string in _list:
+        #             f.write(str(_string) + '\n')
         return logs, labels
 
 
@@ -59,8 +77,8 @@ class KerasNeuralNetwork():
         model = Sequential()
         model.add(Embedding(VOCAB_SIZE, 80, input_length=41))
         model.add(Dropout(DROPOUT_RATE))
-        #model.add(LSTM(41, activation='tanh', use_bias=True))
-        model.add(Bidirectional(LSTM(41, activation='tanh', use_bias=True)))
+        model.add(LSTM(41, activation='tanh', use_bias=True))
+        #model.add(Bidirectional(LSTM(41, activation='tanh', use_bias=True)))
         model.add(Dropout(DROPOUT_RATE))
         model.add(Dense(2, activation='softmax'))
         model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
@@ -69,11 +87,11 @@ class KerasNeuralNetwork():
 
         return model
 
-    def train(self, vocabulary):
+    def train(self, vocabulary, dictionaryOfFrequencies):
 
         allFiles = glob.glob(PATH + "/*.csv")
 
-        logs, labels = self.load_data(allFiles, vocabulary)
+        logs, labels = self.load_data(allFiles, vocabulary, dictionaryOfFrequencies,True)
 
         model = self.model()
         # we split our data as batches
@@ -83,7 +101,7 @@ class KerasNeuralNetwork():
         training_labels = np.array(labels)
 
         # checkpoint
-        filepath = "weights.best.hdf5"
+        filepath = "weights2.best.hdf5"
         checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=False,save_weights_only = False, mode='auto',period = 1)
         callbacks_list = [checkpoint]
 
@@ -92,23 +110,24 @@ class KerasNeuralNetwork():
 
         # serialize model to JSON
         model_json = model.to_json()
-        with open("model.json", "w") as json_file:
+        with open("model2.json", "w") as json_file:
             json_file.write(model_json)
         # serialize weights to HDF5
-        model.save_weights("model.h5")
+        model.save_weights("model2.h5")
         print("Saved model to disk")
 
         return model
 
-    def test(self, vocabulary):
+    def test(self, vocabulary,dictionaryOfFrequencies):
 
         all_files = glob.glob("KDD_Test_Data_Preprocessed.csv/*.csv")
 
-        test_logs, test_labels = self.load_test_data(all_files, vocabulary)
+        test_logs, test_labels = self.load_data(all_files, vocabulary,dictionaryOfFrequencies, False)
 
         test_logs = np.array(test_logs)
         test_labels = np.array(test_labels)
 
+        print(test_logs)
         loaded_model = self.load_saved_model()
 
         # evaluate loaded model on test data
@@ -131,8 +150,11 @@ class KerasNeuralNetwork():
         with open('vocabulary.pickle', 'rb') as handle:
             vocabulary = pickle.load(handle)
 
-            self.train(vocabulary)
-            #self.test(vocabulary)
+        with open('word_frequencies.pickle', 'rb') as handle:
+            dictionaryOfFrequencies = pickle.load(handle)
+
+            #self.train(vocabulary, dictionaryOfFrequencies)
+            self.test(vocabulary,dictionaryOfFrequencies)
 
     def precision(self, y_true, y_pred):
         # Calculates the precision
@@ -160,9 +182,9 @@ class KerasNeuralNetwork():
         print("Loaded model from disk")
 
         return loaded_model
-    # def fmeasure(self, y_true, y_pred):
-    #     # Calculates the f-measure, the harmonic mean of precision and recall.
-    #     return fbeta_score(y_true, y_pred, beta=1)
+    def fmeasure(self, y_true, y_pred):
+        # Calculates the f-measure, the harmonic mean of precision and recall.
+        return fbeta_score(y_true, y_pred, beta=1)
 
 if __name__ == '__main__':
    nn = KerasNeuralNetwork()
