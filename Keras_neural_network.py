@@ -138,13 +138,14 @@ class KerasNeuralNetwork():
         loaded_model.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy',
                            self.recall,
                           self.precision])
-        loss, accuracy,recall_r,precision_r  = loaded_model.evaluate(test_logs, test_labels, verbose=VERBOSE)
-        print('Accuracy: %f' % (accuracy * 100))
-        print('F1: %f' % (self.f1measure(precision_r,recall_r) * 100))
-        print('Recall: %f' % (recall_r * 100))
-        print('Precision: %f' % (precision_r * 100))
-        # predict = loaded_model.predict( test_logs, verbose=1)
-        #
+        # loss, accuracy,recall_r,precision_r  = loaded_model.evaluate(test_logs, test_labels, verbose=VERBOSE)
+        # print('Accuracy: %f' % (accuracy * 100))
+        # print('F1: %f' % (self.f1measure(precision_r,recall_r) * 100))
+        # print('Recall: %f' % (recall_r * 100))
+        # print('Precision: %f' % (precision_r * 100))
+        predict = loaded_model.predict( test_logs, verbose=1)
+        print(predict)
+
         # with open('output.txt', 'w') as f:
         #     for _list in predict:
         #         for _string in _list:
@@ -157,15 +158,18 @@ class KerasNeuralNetwork():
         with open('word_frequencies.pickle', 'rb') as handle:
             dictionaryOfFrequencies = pickle.load(handle)
 
-            self.train(vocabulary, dictionaryOfFrequencies)
-            #self.test(vocabulary,dictionaryOfFrequencies)
+            #self.train(vocabulary, dictionaryOfFrequencies)
+            self.test(vocabulary,dictionaryOfFrequencies)
 
     def precision(self, y_true, y_pred):
         # Calculates the precision
         true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
         predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        false_positives = predicted_positives - true_positives
+        # true_negatives
+        predicted_negatives = K.sum(K.round(K.clip(y_pred, 1, 0)))
         precision = true_positives / (predicted_positives + K.epsilon())
-        return precision
+        return precision, true_positives, false_positives, predicted_negatives, predicted_positives
 
     def recall(self, y_true, y_pred):
         # Calculates the recall
@@ -191,8 +195,11 @@ class KerasNeuralNetwork():
 
 
     def precision_recall_plot(self, y_true, y_pred):
-
-
+        import tensorflow as tf
+        y_true = tf.keras.backend.eval(y_true)
+        y_pred = tf.keras.backend.eval(y_pred)
+        print(y_true)
+        print(y_pred)
         precision, recall, threashold = precision_recall_curve(y_true, y_pred)
 
         plt.step(recall, precision, color='b', alpha=0.2, where='post')
