@@ -1,7 +1,7 @@
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, LSTM
-from keras.models import Sequential, model_from_json
+from keras.layers import Dense, LSTM, concatenate, Input
+from keras.models import Sequential, model_from_json, Model
 from keras.layers import Dropout
 from keras.optimizers import Adam
 from keras.layers.wrappers import Bidirectional
@@ -75,15 +75,25 @@ class KerasNeuralNetwork():
     def model(self):
 
         # define the model
-        model = Sequential()
-        model.add(Embedding(VOCAB_SIZE, 80, input_length=41))
-        model.add(Dropout(DROPOUT_RATE))
-        model.add(LSTM(41, activation='tanh', use_bias=True))
+        # model = Sequential()
+        # #model.add(Embedding(VOCAB_SIZE, 80, input_length=41))
+        # model.add(concatenate(Embedding(VOCAB_SIZE, 80, input_length=41),axis=-1))
+        # model.add(Dropout(DROPOUT_RATE))
+        # #model.add(LSTM(41, activation='tanh', use_bias=True))
         # model.add(Bidirectional(LSTM(41, activation='tanh', use_bias=True)))
-        model.add(Dropout(DROPOUT_RATE))
-        model.add(Dense(2, activation='softmax'))
-        model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
+        # model.add(Dropout(DROPOUT_RATE))
+        # model.add(Dense(2, activation='softmax'))
+        # model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
+        input = Input(shape=(41,))
+        embedding_layer = Embedding(VOCAB_SIZE, 80, input_length=41)
+        concatenated_embeddings = concatenate([embedding_layer])
+        droped_out = Dropout(DROPOUT_RATE)(concatenated_embeddings)
+        lstm = LSTM(41, activation='tanh', use_bias=True)(droped_out)
+        droped_out = Dropout(DROPOUT_RATE)(lstm)
+        output_layer = Dense(2, activation='softmax')(droped_out)
+        # model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
 
+        model =  Model(inputs=[], outputs=output_layer)
         print(model.summary())
 
         return model
@@ -102,7 +112,7 @@ class KerasNeuralNetwork():
         training_labels = np.array(labels)
 
         # checkpoint
-        filepath = "weights2.best.hdf5"
+        filepath = "weights.best.hdf5"
         checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=False,
                                      save_weights_only=False, mode='auto', period=1)
         callbacks_list = [checkpoint]
@@ -113,10 +123,10 @@ class KerasNeuralNetwork():
 
         # serialize model to JSON
         model_json = model.to_json()
-        with open("model2.json", "w") as json_file:
+        with open("model.json", "w") as json_file:
             json_file.write(model_json)
         # serialize weights to HDF5
-        model.save_weights("model2.h5")
+        model.save_weights("model.h5")
         print("Saved model to disk")
 
         return model
@@ -226,13 +236,13 @@ class KerasNeuralNetwork():
 
         print("/////////////////////////")
 
-        # print(precision_r, true_positives, false_positives, predicted_negatives, predicted_positives)
-        # predict = loaded_model.predict(test_logs, verbose=1)
+        predict = loaded_model.predict(test_logs, verbose=1)
 
-        # with open('output.txt', 'w') as f:
-        #     for _list in predict:
-        #         for _string in _list:
-        #             f.write(str(_string) + '\n')
+        with open('output.txt', 'w') as f:
+            for _list in predict:
+                for _string in _list:
+                    f.write(str(_string) + '\\\\')
+
 
     def main(self):
         with open('vocabulary.pickle', 'rb') as handle:
@@ -241,8 +251,8 @@ class KerasNeuralNetwork():
         with open('word_frequencies.pickle', 'rb') as handle:
             dictionaryOfFrequencies = pickle.load(handle)
 
-            # self.train(vocabulary, dictionaryOfFrequencies)
-            self.test(vocabulary, dictionaryOfFrequencies)
+            self.train(vocabulary, dictionaryOfFrequencies)
+            #self.test(vocabulary, dictionaryOfFrequencies)
 
     def precision(self, y_true, y_pred):
         # Calculates the precision
