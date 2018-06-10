@@ -1,6 +1,6 @@
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, LSTM, concatenate, Input
+from keras.layers import Dense, LSTM, concatenate, Input, Flatten, Reshape
 from keras.models import Sequential, model_from_json, Model
 from keras.layers import Dropout
 from keras.optimizers import Adam
@@ -17,7 +17,7 @@ from sklearn.metrics import fbeta_score
 DATA_DIR = "directory which contain csv files with kdd preprocessed data"
 DICTIONARY = "directory which contains the token:interger_code dictionary"
 MODEL_DIRECTORY = "directory with the neural network model"
-BATCH_SIZE = 512
+BATCH_SIZE = 1
 LEARNING_RATE = 0.0001
 NB_EPOCH = 5
 VERBOSE = 1
@@ -26,7 +26,7 @@ VOCAB_SIZE = 30886
 MAX_LENGTH = 42  # osa einai kai ta logs
 DROPOUT_RATE = 0.3
 N_HIDDEN = 2  # einai to posa theloume na vgaloume
-PATH = r'C:/Users/Nick/PycharmProjects/IntrusionDetector/kdd_preprocessed.csv'  # use your path
+PATH = 'test.csv'  # use your path
 lr = 0.001
 from random import randint, random
 
@@ -36,10 +36,10 @@ class KerasNeuralNetwork():
     def __init__(self):
         self._model = None
 
-    def load_data(self, allFiles, vocabulary, dictionaryOfFrequencies, trainning):
+    def load_data(self, allFiles, vocabulary, dictionaryOfFrequencies, trainning, num_of_logs=3):
         labels = []
         logs = []
-
+        previous_logs =  [[4044]*41]*num_of_logs
         for f in allFiles:
             with open(f, 'r') as csvfile:
                 reader = csv.reader(csvfile)
@@ -49,6 +49,7 @@ class KerasNeuralNetwork():
                     if (trainning):
                         randomIndex = randint(0, 39)
                         log = row[0].split(",")
+                        print(log[randomIndex])
                         if random() > (1 / int(dictionaryOfFrequencies.get(log[randomIndex]))):
                             log[randomIndex] = "unknown"
 
@@ -58,11 +59,14 @@ class KerasNeuralNetwork():
                             if (vocabulary.get(token) == None):
                                 log[n] = 'unknown'
 
-                    row_to_integer = list(map(vocabulary.get, log))
-                    logs.append(row_to_integer[:-1])
+                    current_log = list(map(vocabulary.get, log))
+                    previous_logs.append(current_log[:-1])
+                    previous_logs.pop(0)
+                    logs.append(np.array(previous_logs).flatten())
+                    #logs.append(current_log[:-1])
 
                     # if(row_to_integer[-1] == 28166):
-                    if (row_to_integer[-1] == 2319):
+                    if (current_log[-1] == 2319):
                         labels.append(np.array([1, 0]))
                     else:
                         labels.append(np.array([0, 1]))
@@ -70,37 +74,42 @@ class KerasNeuralNetwork():
         #     for _list in logs:
         #         for _string in _list:
         #             f.write(str(_string) + '\n')
+        print(np.shape(logs))
+        print(labels)
         return logs, labels
 
     def model(self):
-
-        # define the model
-        # model = Sequential()
-        # #model.add(Embedding(VOCAB_SIZE, 80, input_length=41))
-        # model.add(concatenate(Embedding(VOCAB_SIZE, 80, input_length=41),axis=-1))
-        # model.add(Dropout(DROPOUT_RATE))
-        # #model.add(LSTM(41, activation='tanh', use_bias=True))
-        # model.add(Bidirectional(LSTM(41, activation='tanh', use_bias=True)))
-        # model.add(Dropout(DROPOUT_RATE))
-        # model.add(Dense(2, activation='softmax'))
-        # model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
-        input = Input(shape=(41,))
-        embedding_layer = Embedding(VOCAB_SIZE, 80, input_length=41)
-        concatenated_embeddings = concatenate([embedding_layer])
-        droped_out = Dropout(DROPOUT_RATE)(concatenated_embeddings)
-        lstm = LSTM(41, activation='tanh', use_bias=True)(droped_out)
-        droped_out = Dropout(DROPOUT_RATE)(lstm)
-        output_layer = Dense(2, activation='softmax')(droped_out)
-        # model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
-
-        model =  Model(inputs=[], outputs=output_layer)
+        model = Sequential()
+        model.add(Embedding(VOCAB_SIZE, 80, input_length=123))
+        #Embedding(input_dim, output_dim, embeddings_initializer='uniform', embeddings_regularizer=None, activity_regularizer=None, embeddings_constraint=None, mask_zero=False, input_length=None)
+        
+        model.add(Reshape((3,3280), input_shape=(123,80)))
+        #model.add(Reshape((3,41*80), input_shape=(3,41,80)))        
+        #model.add(concatenate(Embedding(VOCAB_SIZE, 80, input_length=41),axis=-1))
+        #model.add(Dropout(DROPOUT_RATE))
+        #model.add(LSTM(500, activation='tanh', use_bias=True))
+        model.add(Bidirectional(LSTM(100,use_bias=True)))
+        model.add(Dropout(DROPOUT_RATE))
+        model.add(Dense(2, activation='softmax'))
+        model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3,0.8]), metrics=['accuracy'])
+        #-------------------------------------------- input = Input(shape=(41,))
+        #---------- embedding_layer = Embedding(VOCAB_SIZE, 80, input_length=41)
+        #-------------- concatenated_embeddings = concatenate([embedding_layer])
+        #----------- droped_out = Dropout(DROPOUT_RATE)(concatenated_embeddings)
+        #--------- lstm = LSTM(41, activation='tanh', use_bias=True)(droped_out)
+        #------------------------------ droped_out = Dropout(DROPOUT_RATE)(lstm)
+        #------------- output_layer = Dense(2, activation='softmax')(droped_out)
         print(model.summary())
+        #model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
+
+#         model =  Model(inputs=[], outputs=output_layer)
+        
 
         return model
 
     def train(self, vocabulary, dictionaryOfFrequencies):
 
-        allFiles = glob.glob(PATH + "/*.csv")
+        allFiles = glob.glob('test.csv')
 
         logs, labels = self.load_data(allFiles, vocabulary, dictionaryOfFrequencies, True)
 
@@ -331,7 +340,22 @@ class KerasNeuralNetwork():
         return recall
 
     # usage model.compile(..., metrics = [precision_threshold(0.1), precision_threshold(0.2),precision_threshold(0.8), recall_threshold(0.2,...)])
-
+    
+    
+    def weighted_categorical_crossentropy(self,weights):
+        weights = K.variable(weights)
+        
+        def loss(y_true, y_pred):
+            # scale predictions so that the class probas of each sample sum to 1
+            y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
+            # clip to prevent NaN's and Inf's
+            y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+            # calc
+            loss = y_true * K.log(y_pred) * weights
+            loss = -K.sum(loss, -1)
+            return loss
+    
+        return loss
 
 if __name__ == '__main__':
     nn = KerasNeuralNetwork()
