@@ -17,7 +17,7 @@ from sklearn.metrics import fbeta_score
 DATA_DIR = "directory which contain csv files with kdd preprocessed data"
 DICTIONARY = "directory which contains the token:interger_code dictionary"
 MODEL_DIRECTORY = "directory with the neural network model"
-BATCH_SIZE = 1
+BATCH_SIZE = 512
 LEARNING_RATE = 0.0001
 NB_EPOCH = 5
 VERBOSE = 1
@@ -26,7 +26,7 @@ VOCAB_SIZE = 30886
 MAX_LENGTH = 42  # osa einai kai ta logs
 DROPOUT_RATE = 0.3
 N_HIDDEN = 2  # einai to posa theloume na vgaloume
-PATH = 'test.csv'  # use your path
+PATH = r'C:/Users/Nick/PycharmProjects/IntrusionDetector/kdd_preprocessed.csv'  # use your path
 lr = 0.001
 from random import randint, random
 
@@ -49,7 +49,6 @@ class KerasNeuralNetwork():
                     if (trainning):
                         randomIndex = randint(0, 39)
                         log = row[0].split(",")
-                        print(log[randomIndex])
                         if random() > (1 / int(dictionaryOfFrequencies.get(log[randomIndex]))):
                             log[randomIndex] = "unknown"
 
@@ -74,31 +73,20 @@ class KerasNeuralNetwork():
         #     for _list in logs:
         #         for _string in _list:
         #             f.write(str(_string) + '\n')
-        print(np.shape(logs))
-        print(labels)
         return logs, labels
 
     def model(self):
         model = Sequential()
         model.add(Embedding(VOCAB_SIZE, 80, input_length=123))
-        #Embedding(input_dim, output_dim, embeddings_initializer='uniform', embeddings_regularizer=None, activity_regularizer=None, embeddings_constraint=None, mask_zero=False, input_length=None)
-        
         model.add(Reshape((3,3280), input_shape=(123,80)))
         #model.add(Reshape((3,41*80), input_shape=(3,41,80)))        
         #model.add(concatenate(Embedding(VOCAB_SIZE, 80, input_length=41),axis=-1))
         #model.add(Dropout(DROPOUT_RATE))
-        #model.add(LSTM(500, activation='tanh', use_bias=True))
-        model.add(Bidirectional(LSTM(100,use_bias=True)))
+        model.add(LSTM(100, use_bias=True))
+        #model.add(Bidirectional(LSTM(100,use_bias=True)))
         model.add(Dropout(DROPOUT_RATE))
         model.add(Dense(2, activation='softmax'))
         model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3,0.8]), metrics=['accuracy'])
-        #-------------------------------------------- input = Input(shape=(41,))
-        #---------- embedding_layer = Embedding(VOCAB_SIZE, 80, input_length=41)
-        #-------------- concatenated_embeddings = concatenate([embedding_layer])
-        #----------- droped_out = Dropout(DROPOUT_RATE)(concatenated_embeddings)
-        #--------- lstm = LSTM(41, activation='tanh', use_bias=True)(droped_out)
-        #------------------------------ droped_out = Dropout(DROPOUT_RATE)(lstm)
-        #------------- output_layer = Dense(2, activation='softmax')(droped_out)
         print(model.summary())
         #model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
 
@@ -109,7 +97,7 @@ class KerasNeuralNetwork():
 
     def train(self, vocabulary, dictionaryOfFrequencies):
 
-        allFiles = glob.glob('test.csv')
+        allFiles = glob.glob(PATH + "/*.csv")
 
         logs, labels = self.load_data(allFiles, vocabulary, dictionaryOfFrequencies, True)
 
@@ -260,8 +248,8 @@ class KerasNeuralNetwork():
         with open('word_frequencies.pickle', 'rb') as handle:
             dictionaryOfFrequencies = pickle.load(handle)
 
-            self.train(vocabulary, dictionaryOfFrequencies)
-            #self.test(vocabulary, dictionaryOfFrequencies)
+            #self.train(vocabulary, dictionaryOfFrequencies)
+            self.test(vocabulary, dictionaryOfFrequencies)
 
     def precision(self, y_true, y_pred):
         # Calculates the precision
