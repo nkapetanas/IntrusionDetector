@@ -1,6 +1,6 @@
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, LSTM, concatenate, Input, Flatten, Reshape
+from keras.layers import Dense, LSTM, concatenate, Input, Flatten, Reshape, TimeDistributed
 from keras.models import Sequential, model_from_json, Model
 from keras.layers import Dropout
 from keras.optimizers import Adam
@@ -79,19 +79,30 @@ class KerasNeuralNetwork():
         model = Sequential()
         model.add(Embedding(VOCAB_SIZE, 80, input_length=123))
         model.add(Reshape((3,3280), input_shape=(123,80)))
-        #model.add(Reshape((3,41*80), input_shape=(3,41,80)))        
-        #model.add(concatenate(Embedding(VOCAB_SIZE, 80, input_length=41),axis=-1))
-        #model.add(Dropout(DROPOUT_RATE))
-        model.add(LSTM(100, use_bias=True))
-        #model.add(Bidirectional(LSTM(100,use_bias=True)))
+        #model.add(LSTM(100, return_sequences = True, use_bias=True))
+        model.add(Bidirectional(LSTM(100, return_sequences = True, use_bias=True)))
         model.add(Dropout(DROPOUT_RATE))
-        model.add(Dense(2, activation='softmax'))
+        # model.add(Dense(1000, input_dim=2704800 ,activation='softmax'))
+        # model.add(Dense(800, input_dim=1000 ,activation='softmax'))
+        # model.add(Dense(700, input_dim=800 ,activation='softmax'))
+        model.add(TimeDistributed(Dense(2, activation='softmax')))
         model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3,0.8]), metrics=['accuracy'])
         print(model.summary())
-        #model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss='binary_crossentropy', metrics=['accuracy'])
 
-#         model =  Model(inputs=[], outputs=output_layer)
-        
+        # main_input = Input(shape=(123,))
+        # embedding_layer = Embedding(VOCAB_SIZE, 80, input_length=123)#(main_input)
+        # reshaped_layer = Reshape((3, 3280), input_shape=(123, 80))(embedding_layer)
+        # blstm, forward_h, forward_c, backward_h, backward_c = Bidirectional(LSTM(100, return_sequences=True, return_state=True, use_bias=True))(reshaped_layer)
+        # droped_out_layer = Dropout(DROPOUT_RATE)(blstm)
+        # #MLP_1 = Dense(1000, activation='softmax')(droped_out_layer) #1352400
+        # #MLP_2 = Dense(1352400, activation='softmax')(droped_out_layer) # 676200
+        # #MLP_3 = Dense(700, activation='softmax')(MLP_2) # 338100
+        # output = Dense(2, activation='softmax')(droped_out_layer)
+        #
+        # model =  Model(inputs= embedding_layer, outputs=output)
+        # print(model.summary())
+        # model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3, 0.8]),
+        #               metrics=['accuracy'])
 
         return model
 
@@ -238,7 +249,7 @@ class KerasNeuralNetwork():
         with open('output.txt', 'w') as f:
             for _list in predict:
                 for _string in _list:
-                    f.write(str(_string) + '\\\\')
+                    f.write(str(_string) + '\n')
 
 
     def main(self):
@@ -248,8 +259,8 @@ class KerasNeuralNetwork():
         with open('word_frequencies.pickle', 'rb') as handle:
             dictionaryOfFrequencies = pickle.load(handle)
 
-            #self.train(vocabulary, dictionaryOfFrequencies)
-            self.test(vocabulary, dictionaryOfFrequencies)
+            self.train(vocabulary, dictionaryOfFrequencies)
+            #self.test(vocabulary, dictionaryOfFrequencies)
 
     def precision(self, y_true, y_pred):
         # Calculates the precision
