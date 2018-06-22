@@ -1,6 +1,6 @@
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, LSTM, concatenate, Input, Flatten, Reshape, TimeDistributed
+from keras.layers import Dense, LSTM, concatenate, Input, Flatten, Reshape, TimeDistributed, Activation
 from keras.models import Sequential, model_from_json, Model
 from keras.layers import Dropout
 from keras.optimizers import Adam
@@ -61,8 +61,8 @@ class KerasNeuralNetwork():
                     current_log = list(map(vocabulary.get, log))
                     previous_logs.append(current_log[:-1])
                     previous_logs.pop(0)
-                    logs.append(np.array(previous_logs).flatten())
-                    #logs.append(current_log[:-1])
+                    #logs.append(np.array(previous_logs).flatten())
+                    logs.append(current_log[:-1])
 
                     # if(row_to_integer[-1] == 28166):
                     if (current_log[-1] == 2319):
@@ -75,31 +75,37 @@ class KerasNeuralNetwork():
         #             f.write(str(_string) + '\n')
         return logs, labels
 
+
     def model(self):
         model = Sequential()
-        model.add(Embedding(VOCAB_SIZE, 80, input_length=123))
-        model.add(Reshape((3,3280), input_shape=(123,80)))
-        #model.add(LSTM(100, return_sequences = True, use_bias=True))
-        model.add(Bidirectional(LSTM(100, return_sequences = True, use_bias=True)))
+        #model.add(Embedding(VOCAB_SIZE, 80, input_length=123))
+        model.add(Embedding(VOCAB_SIZE, 80, input_length=41))
+        model.add(Flatten())
+        #model.add(Reshape((3,3280), input_shape=(123,80)))
+        model.add(LSTM(3, return_sequences = True, use_bias=True))
+        #model.add(Bidirectional(LSTM(3, return_sequences= True, use_bias=True)))
+
         model.add(Dropout(DROPOUT_RATE))
         # model.add(Dense(1000, input_dim=2704800 ,activation='softmax'))
         # model.add(Dense(800, input_dim=1000 ,activation='softmax'))
         # model.add(Dense(700, input_dim=800 ,activation='softmax'))
+        #model.add(TimeDistributed(Dense(2)))
+        #model.add(Activation('softmax'))
         model.add(TimeDistributed(Dense(2, activation='softmax')))
         model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3,0.8]), metrics=['accuracy'])
         print(model.summary())
 
         # main_input = Input(shape=(123,))
-        # embedding_layer = Embedding(VOCAB_SIZE, 80, input_length=123)#(main_input)
+        # embedding_layer = Embedding(VOCAB_SIZE, 80, input_length=123)(main_input)
         # reshaped_layer = Reshape((3, 3280), input_shape=(123, 80))(embedding_layer)
-        # blstm, forward_h, forward_c, backward_h, backward_c = Bidirectional(LSTM(100, return_sequences=True, return_state=True, use_bias=True))(reshaped_layer)
-        # droped_out_layer = Dropout(DROPOUT_RATE)(blstm)
+        # blstm = Bidirectional(LSTM(100, return_sequences=True, dropout=DROPOUT_RATE, use_bias=True))(reshaped_layer)
+        # #droped_out_layer = Dropout(DROPOUT_RATE)(blstm)
         # #MLP_1 = Dense(1000, activation='softmax')(droped_out_layer) #1352400
         # #MLP_2 = Dense(1352400, activation='softmax')(droped_out_layer) # 676200
         # #MLP_3 = Dense(700, activation='softmax')(MLP_2) # 338100
-        # output = Dense(2, activation='softmax')(droped_out_layer)
+        # output = TimeDistributed(Dense(2, activation='softmax'))(blstm)
         #
-        # model =  Model(inputs= embedding_layer, outputs=output)
+        # model =  Model(inputs= [main_input], outputs=[output])
         # print(model.summary())
         # model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3, 0.8]),
         #               metrics=['accuracy'])
