@@ -39,7 +39,7 @@ class KerasNeuralNetwork():
     def load_data(self, allFiles, vocabulary, dictionaryOfFrequencies, trainning, num_of_logs=3):
         labels = []
         logs = []
-        previous_logs =  [[4044]*41]*num_of_logs
+        previous_logs = [[4044] * 41] * num_of_logs
         for f in allFiles:
             with open(f, 'r') as csvfile:
                 reader = csv.reader(csvfile)
@@ -49,6 +49,7 @@ class KerasNeuralNetwork():
                     if (trainning):
                         randomIndex = randint(0, 39)
                         log = row[0].split(",")
+                        # print(log[randomIndex])
                         if random() > (1 / int(dictionaryOfFrequencies.get(log[randomIndex]))):
                             log[randomIndex] = "unknown"
 
@@ -61,38 +62,36 @@ class KerasNeuralNetwork():
                     current_log = list(map(vocabulary.get, log))
                     previous_logs.append(current_log[:-1])
                     previous_logs.pop(0)
-                    #logs.append(np.array(previous_logs).flatten())
-                    logs.append(current_log[:-1])
+                    logs.append(np.array(previous_logs).flatten())
+                    # logs.append(current_log[:-1])
 
                     # if(row_to_integer[-1] == 28166):
                     if (current_log[-1] == 2319):
-                        labels.append(np.array([1, 0]))
+                        labels.append(np.array([[1, 0]]))
                     else:
-                        labels.append(np.array([0, 1]))
+                        labels.append(np.array([[0, 1]]))
         # with open('logs.txt', 'w') as f:
         #     for _list in logs:
         #         for _string in _list:
         #             f.write(str(_string) + '\n')
+        # print(np.shape(logs))
+        # print(labels)
         return logs, labels
-
 
     def model(self):
         model = Sequential()
-        #model.add(Embedding(VOCAB_SIZE, 80, input_length=123))
-        model.add(Embedding(VOCAB_SIZE, 80, input_length=41))
-        model.add(Flatten())
-        #model.add(Reshape((3,3280), input_shape=(123,80)))
-        model.add(LSTM(3, return_sequences = True, use_bias=True))
-        #model.add(Bidirectional(LSTM(3, return_sequences= True, use_bias=True)))
-
+        model.add(Embedding(VOCAB_SIZE, 8, input_length=123))
+        model.add(Reshape((3, 328), input_shape=(123, 8)))
         model.add(Dropout(DROPOUT_RATE))
-        # model.add(Dense(1000, input_dim=2704800 ,activation='softmax'))
-        # model.add(Dense(800, input_dim=1000 ,activation='softmax'))
-        # model.add(Dense(700, input_dim=800 ,activation='softmax'))
-        #model.add(TimeDistributed(Dense(2)))
-        #model.add(Activation('softmax'))
+        #model.add(LSTM(328, return_sequences=True))
+        model.add(Bidirectional(LSTM(328, return_sequences=True)))
+        model.add(Dropout(DROPOUT_RATE))
+        model.add(TimeDistributed(Dense(1000, activation='softmax')))
+        model.add(TimeDistributed(Dense(800, activation='softmax')))
+        model.add(TimeDistributed(Dense(700, activation='softmax')))
         model.add(TimeDistributed(Dense(2, activation='softmax')))
-        model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3,0.8]), metrics=['accuracy'])
+        model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3, 0.8]),
+                      metrics=['accuracy'])
         print(model.summary())
 
         # main_input = Input(shape=(123,))
@@ -158,7 +157,7 @@ class KerasNeuralNetwork():
         loaded_model = self.load_saved_model()
 
         # evaluate loaded model on test data
-        loaded_model.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy',
+        loaded_model.compile(loss=self.weighted_categorical_crossentropy([0.3, 0.8]), optimizer=Adam(), metrics=['accuracy',
                                                                                     self.recall,
                                                                                     self.precision,
                                                                                     self.precision_threshold(0.1),
@@ -178,7 +177,8 @@ class KerasNeuralNetwork():
                                                                                     self.recall_threshold(0.6),
                                                                                     self.recall_threshold(0.7),
                                                                                     self.recall_threshold(0.8),
-                                                                                    self.recall_threshold(0.9)])
+                                                                                    self.recall_threshold(0.9)
+                                                                                    ])
         loss, accuracy, recall_r, precision_r, precision_threshold1, precision_threshold2, precision_threshold3, precision_threshold4, precision_threshold5, precision_threshold6, \
                 precision_threshold7, precision_threshold8, precision_threshold9, recall_threshold1, recall_threshold2, recall_threshold3, recall_threshold4, recall_threshold5, recall_threshold6, \
         recall_threshold7, recall_threshold8, recall_threshold9  = loaded_model.evaluate(test_logs, test_labels, verbose=VERBOSE)
@@ -265,8 +265,8 @@ class KerasNeuralNetwork():
         with open('word_frequencies.pickle', 'rb') as handle:
             dictionaryOfFrequencies = pickle.load(handle)
 
-            self.train(vocabulary, dictionaryOfFrequencies)
-            #self.test(vocabulary, dictionaryOfFrequencies)
+            #self.train(vocabulary, dictionaryOfFrequencies)
+            self.test(vocabulary, dictionaryOfFrequencies)
 
     def precision(self, y_true, y_pred):
         # Calculates the precision
