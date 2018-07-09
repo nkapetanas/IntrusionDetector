@@ -1,34 +1,44 @@
+import csv
+import glob
+import pickle
+from random import randint, random
+
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, LSTM, concatenate, Input, Flatten, Reshape, TimeDistributed, Activation
-from keras.models import Sequential, model_from_json, Model
+from keras.layers import Dense, LSTM, Reshape, TimeDistributed
 from keras.layers import Dropout
-from keras.optimizers import Adam
-from keras.layers.wrappers import Bidirectional
-from sklearn.metrics import precision_recall_curve
-import matplotlib.pyplot as plt
-import glob
-import numpy as np
-import csv
-import pickle
 from keras.layers.embeddings import Embedding
-from sklearn.metrics import fbeta_score
+from keras.layers.wrappers import Bidirectional
+from keras.models import Sequential, model_from_json
+from keras.optimizers import Adam
+from sklearn.metrics import precision_recall_curve
 
-DATA_DIR = "directory which contain csv files with kdd preprocessed data"
-DICTIONARY = "directory which contains the token:interger_code dictionary"
-MODEL_DIRECTORY = "directory with the neural network model"
-BATCH_SIZE = 512
+##--PATHS--#
+INPUT_DIR_TRAIN = "test.csv"
+INPUT_DIR_TEST = "test.csv"
+VOCABULARY_FREQUENCIES = "word_frequencies.pickle"
+VOCABULARY = "vocabulary.pickle"
+MODEL_PATH = "model.json"
+MODEL_PATH_WEIGHTS = "weights.best.hdf5"
+
+##-MODEL PARAMETERS--##
+BATCH_SIZE = 1
 LEARNING_RATE = 0.0001
 NB_EPOCH = 5
 VERBOSE = 1
 VALIDATION_SPLIT = 0.2
-VOCAB_SIZE = 30886
-MAX_LENGTH = 42  # osa einai kai ta logs
+VOCAB_SIZE = 10000
 DROPOUT_RATE = 0.3
-N_HIDDEN = 2  # einai to posa theloume na vgaloume
-PATH = r'C:/Users/Nick/PycharmProjects/IntrusionDetector/kdd_preprocessed.csv'  # use your path
+PATH = r'C:/Users/Nick/PycharmProjects/IntrusionDetector/kdd_preprocessed.csv'
 lr = 0.001
-from random import randint, random
+
+# MODEL DIMENSIONS
+TIME_STEPS = 10
+EMB_DIMENSION = 8
+NUM_OF_LOG_FIELDS = 41
 
 
 class KerasNeuralNetwork():
@@ -36,7 +46,7 @@ class KerasNeuralNetwork():
     def __init__(self):
         self._model = None
 
-    def load_data(self, allFiles, vocabulary, dictionaryOfFrequencies, trainning, num_of_logs=3):
+    def load_data(self, allFiles, vocabulary, dictionaryOfFrequencies, trainning, num_of_logs=TIME_STEPS):
         labels = []
         logs = []
         previous_logs = [[4044] * 41] * num_of_logs
@@ -49,7 +59,6 @@ class KerasNeuralNetwork():
                     if (trainning):
                         randomIndex = randint(0, 39)
                         log = row[0].split(",")
-                        # print(log[randomIndex])
                         if random() > (1 / int(dictionaryOfFrequencies.get(log[randomIndex]))):
                             log[randomIndex] = "unknown"
 
@@ -63,28 +72,20 @@ class KerasNeuralNetwork():
                     previous_logs.append(current_log[:-1])
                     previous_logs.pop(0)
                     logs.append(np.array(previous_logs).flatten())
-                    # logs.append(current_log[:-1])
 
-                    # if(row_to_integer[-1] == 28166):
                     if (current_log[-1] == 2319):
                         labels.append(np.array([[1, 0]]))
                     else:
                         labels.append(np.array([[0, 1]]))
-        # with open('logs.txt', 'w') as f:
-        #     for _list in logs:
-        #         for _string in _list:
-        #             f.write(str(_string) + '\n')
-        # print(np.shape(logs))
-        # print(labels)
         return logs, labels
 
     def model(self):
         model = Sequential()
-        model.add(Embedding(VOCAB_SIZE, 8, input_length=123))
-        model.add(Reshape((3, 328), input_shape=(123, 8)))
+        model.add(Embedding(VOCAB_SIZE, EMB_DIMENSION, input_length=(NUM_OF_LOG_FIELDS * TIME_STEPS)))
+        model.add(Reshape((TIME_STEPS, (EMB_DIMENSION * NUM_OF_LOG_FIELDS)),
+                          input_shape=((NUM_OF_LOG_FIELDS * TIME_STEPS), EMB_DIMENSION)))
         model.add(Dropout(DROPOUT_RATE))
-        #model.add(LSTM(328, return_sequences=True))
-        model.add(Bidirectional(LSTM(328, return_sequences=True)))
+        model.add(Bidirectional(LSTM(EMB_DIMENSION * NUM_OF_LOG_FIELDS, return_sequences=True)))
         model.add(Dropout(DROPOUT_RATE))
         model.add(TimeDistributed(Dense(1000, activation='softmax')))
         model.add(TimeDistributed(Dense(800, activation='softmax')))
@@ -94,26 +95,11 @@ class KerasNeuralNetwork():
                       metrics=['accuracy'])
         print(model.summary())
 
-        # main_input = Input(shape=(123,))
-        # embedding_layer = Embedding(VOCAB_SIZE, 80, input_length=123)(main_input)
-        # reshaped_layer = Reshape((3, 3280), input_shape=(123, 80))(embedding_layer)
-        # blstm = Bidirectional(LSTM(100, return_sequences=True, dropout=DROPOUT_RATE, use_bias=True))(reshaped_layer)
-        # #droped_out_layer = Dropout(DROPOUT_RATE)(blstm)
-        # #MLP_1 = Dense(1000, activation='softmax')(droped_out_layer) #1352400
-        # #MLP_2 = Dense(1352400, activation='softmax')(droped_out_layer) # 676200
-        # #MLP_3 = Dense(700, activation='softmax')(MLP_2) # 338100
-        # output = TimeDistributed(Dense(2, activation='softmax'))(blstm)
-        #
-        # model =  Model(inputs= [main_input], outputs=[output])
-        # print(model.summary())
-        # model.compile(optimizer=Adam(lr=lr, clipvalue=5.0), loss=self.weighted_categorical_crossentropy([0.3, 0.8]),
-        #               metrics=['accuracy'])
-
         return model
 
     def train(self, vocabulary, dictionaryOfFrequencies):
 
-        allFiles = glob.glob(PATH + "/*.csv")
+        allFiles = glob.glob(INPUT_DIR_TRAIN)
 
         logs, labels = self.load_data(allFiles, vocabulary, dictionaryOfFrequencies, True)
 
@@ -125,7 +111,7 @@ class KerasNeuralNetwork():
         training_labels = np.array(labels)
 
         # checkpoint
-        filepath = "weights.best.hdf5"
+        filepath = MODEL_PATH_WEIGHTS
         checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=False,
                                      save_weights_only=False, mode='auto', period=1)
         callbacks_list = [checkpoint]
@@ -136,17 +122,17 @@ class KerasNeuralNetwork():
 
         # serialize model to JSON
         model_json = model.to_json()
-        with open("model.json", "w") as json_file:
+        with open(MODEL_PATH, "w") as json_file:
             json_file.write(model_json)
         # serialize weights to HDF5
-        model.save_weights("model.h5")
+        model.save_weights(MODEL_PATH_WEIGHTS)
         print("Saved model to disk")
 
         return model
 
     def test(self, vocabulary, dictionaryOfFrequencies):
 
-        all_files = glob.glob("KDD_Test_Data_Preprocessed.csv/*.csv")
+        all_files = glob.glob(INPUT_DIR_TEST)
 
         test_logs, test_labels = self.load_data(all_files, vocabulary, dictionaryOfFrequencies, False)
 
@@ -156,99 +142,28 @@ class KerasNeuralNetwork():
         print(test_logs)
         loaded_model = self.load_saved_model()
 
+        precision = self.as_keras_metric(tf.metrics.precision)
+        recall = self.as_keras_metric(tf.metrics.recall)
+
         # evaluate loaded model on test data
-        loaded_model.compile(loss=self.weighted_categorical_crossentropy([0.3, 0.8]), optimizer=Adam(), metrics=['accuracy',
-                                                                                    self.recall,
-                                                                                    self.precision,
-                                                                                    self.precision_threshold(0.1),
-                                                                                    self.precision_threshold(0.2),
-                                                                                    self.precision_threshold(0.3),
-                                                                                    self.precision_threshold(0.4),
-                                                                                    self.precision_threshold(0.5),
-                                                                                    self.precision_threshold(0.6),
-                                                                                    self.precision_threshold(0.7),
-                                                                                    self.precision_threshold(0.8),
-                                                                                    self.precision_threshold(0.9),
-                                                                                    self.recall_threshold(0.1),
-                                                                                    self.recall_threshold(0.2),
-                                                                                    self.recall_threshold(0.3),
-                                                                                    self.recall_threshold(0.4),
-                                                                                    self.recall_threshold(0.5),
-                                                                                    self.recall_threshold(0.6),
-                                                                                    self.recall_threshold(0.7),
-                                                                                    self.recall_threshold(0.8),
-                                                                                    self.recall_threshold(0.9)
-                                                                                    ])
-        loss, accuracy, recall_r, precision_r, precision_threshold1, precision_threshold2, precision_threshold3, precision_threshold4, precision_threshold5, precision_threshold6, \
-                precision_threshold7, precision_threshold8, precision_threshold9, recall_threshold1, recall_threshold2, recall_threshold3, recall_threshold4, recall_threshold5, recall_threshold6, \
-        recall_threshold7, recall_threshold8, recall_threshold9  = loaded_model.evaluate(test_logs, test_labels, verbose=VERBOSE)
-        print('Accuracy: %f' % (accuracy * 100))
-        print('F1: %f' % (self.f1measure(precision_r, recall_r) * 100))
-        print('Recall: %f' % (recall_r * 100))
-        print('Precision: %f' % (precision_r * 100))
+        loaded_model.compile(loss=self.weighted_categorical_crossentropy([0.3, 0.8]), optimizer=Adam(),
+                             metrics=['accuracy'] +
+                                     [precision, recall] +
+                                     [self.precision_threshold(i) for i in np.linspace(0.1, 0.9, 9)] +
+                                     [self.recall_threshold(i) for i in np.linspace(0.1, 0.9, 9)])
+        # metrics[0] = loss, metrics[1] = accuracy, metrics[2] = recall, metrics[3] = precision,
+        # metrics[4:12] = precision_thresholds, metrics[13:] = recalls
+        metrics = loaded_model.evaluate(test_logs, test_labels, verbose=VERBOSE)
+        print('Accuracy: %f' % (metrics[1] * 100))
+        print('F1: %f' % (self.f1_measure(metrics[3], metrics[2]) * 100))
+        print('Recall: %f' % (metrics[2] * 100))
+        print('Precision: %f' % (metrics[3] * 100))
 
-        print(precision_threshold1 )
+        print("Precision over different thresholds")
+        print(metrics[4:12])
+        print("Recall over different thresholds")
+        print(metrics[13:])
 
-        print("")
-        print(recall_threshold1)
-
-        print("/////////////////////////")
-
-        print(precision_threshold2)
-
-        print("")
-        print(recall_threshold2)
-
-        print("/////////////////////////")
-
-        print(precision_threshold3)
-
-        print("")
-        print(recall_threshold3)
-
-        print("/////////////////////////")
-
-        print(precision_threshold4)
-
-        print("")
-        print(recall_threshold4)
-
-        print("/////////////////////////")
-
-        print(precision_threshold5)
-
-        print("")
-        print(recall_threshold5)
-
-        print("/////////////////////////")
-
-        print(precision_threshold6)
-
-        print("")
-        print(recall_threshold6)
-
-        print("/////////////////////////")
-
-        print(precision_threshold7)
-
-        print("")
-        print(recall_threshold7)
-
-        print("/////////////////////////")
-
-        print(precision_threshold8)
-
-        print("")
-        print(recall_threshold8)
-
-        print("/////////////////////////")
-
-        print(precision_threshold9)
-
-        print("")
-        print(recall_threshold9)
-
-        print("/////////////////////////")
 
         predict = loaded_model.predict(test_logs, verbose=1)
 
@@ -257,49 +172,44 @@ class KerasNeuralNetwork():
                 for _string in _list:
                     f.write(str(_string) + '\n')
 
-
     def main(self):
-        with open('vocabulary.pickle', 'rb') as handle:
+        with open(VOCABULARY, 'rb') as handle:
             vocabulary = pickle.load(handle)
 
-        with open('word_frequencies.pickle', 'rb') as handle:
+        with open(VOCABULARY_FREQUENCIES, 'rb') as handle:
             dictionaryOfFrequencies = pickle.load(handle)
 
-            #self.train(vocabulary, dictionaryOfFrequencies)
+            # self.train(vocabulary, dictionaryOfFrequencies)
             self.test(vocabulary, dictionaryOfFrequencies)
 
-    def precision(self, y_true, y_pred):
-        # Calculates the precision
-        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
-        false_positives = predicted_positives - true_positives
-        # true_negatives
-        predicted_negatives = K.sum(K.round(K.clip(y_pred, 1, 0)))
-        precision = true_positives / (predicted_positives + K.epsilon())
-        return precision
-        # return precision, true_positives, false_positives, predicted_negatives, predicted_positives
+    def as_keras_metric(self, metric):
+        import functools
 
-    def recall(self, y_true, y_pred):
-        # Calculates the recall
-        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
-        recall = true_positives / (possible_positives + K.epsilon())
-        return recall
+        @functools.wraps(metric)
+        def wrapper(self, args, **kwargs):
+            """ Wrapper for turning tensorflow metrics into keras metrics """
+            value, update_op = metric(self, args, **kwargs)
+            K.get_session().run(tf.local_variables_initializer())
+            with tf.control_dependencies([update_op]):
+                value = tf.identity(value)
+            return value
+
+        return wrapper
 
     def load_saved_model(self):
 
         # load json and create model
-        json_file = open('model.json', 'r')
+        json_file = open(MODEL_PATH, 'r')
         loaded_model_json = json_file.read()
         json_file.close()
         loaded_model = model_from_json(loaded_model_json)
         # load weights into new model
-        loaded_model.load_weights("model.h5")
+        loaded_model.load_weights(MODEL_PATH_WEIGHTS)
         print("Loaded model from disk")
 
         return loaded_model
 
-    def f1measure(self, precision, recall):
+    def f1_measure(self, precision, recall):
         return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
 
     def precision_recall_plot(self, y_true, y_pred):
@@ -330,6 +240,7 @@ class KerasNeuralNetwork():
             predicted_positives = K.sum(y_pred)
             precision_ratio = true_positives / (predicted_positives + K.epsilon())
             return precision_ratio
+
         return precision
 
     def recall_threshold(self, threshold=0.5):
@@ -342,14 +253,12 @@ class KerasNeuralNetwork():
             all_positives = K.sum(K.clip(y_true, 0, 1))
             recall_ratio = true_positives / (all_positives + K.epsilon())
             return recall_ratio
+
         return recall
 
-    # usage model.compile(..., metrics = [precision_threshold(0.1), precision_threshold(0.2),precision_threshold(0.8), recall_threshold(0.2,...)])
-    
-    
-    def weighted_categorical_crossentropy(self,weights):
+    def weighted_categorical_crossentropy(self, weights):
         weights = K.variable(weights)
-        
+
         def loss(y_true, y_pred):
             # scale predictions so that the class probas of each sample sum to 1
             y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
@@ -359,8 +268,9 @@ class KerasNeuralNetwork():
             loss = y_true * K.log(y_pred) * weights
             loss = -K.sum(loss, -1)
             return loss
-    
+
         return loss
+
 
 if __name__ == '__main__':
     nn = KerasNeuralNetwork()
